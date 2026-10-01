@@ -1,4 +1,4 @@
-<title>Wafer Mission Controller Demo</title>
+<title>Senson</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
@@ -221,7 +221,7 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
 
 <div class="shell">
   <header class="top">
-    <div class="brand">Wafer Calibration Tools<small>independent demo · not KLA software · simulated data</small></div>
+    <div class="brand">Senson<small>independent demo · not KLA software · simulated data</small></div>
     <span class="chip"><i class="dot"></i><span id="foupText">FOUP connected · 192.168.10.14</span></span>
     <span class="spacer"></span>
     <span class="chip" id="runChip"><i class="dot"></i><span id="runText">Example data loaded</span></span>
@@ -412,7 +412,7 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
     <!-- ================= LAUNCHER ================= -->
     <section class="view" id="v-home">
       <div class="win launch">
-        <div class="win-title"><i class="ico"></i>Tools Launcher</div>
+        <div class="win-title"><i class="ico"></i>Senson Tools Launcher</div>
         <div class="menubar" id="launchMenu">
           <div><button data-menu="ltools" aria-expanded="false">Tools</button>
             <div class="menu" id="m-ltools" hidden><button data-lact="db">Database/Connection Manager…</button></div></div>
@@ -439,7 +439,7 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
             <button class="lbtn" data-go="template">Create a Template</button>
             <button class="lbtn" data-go="limits">Create a Control Limit</button></div>
         </div>
-        <div class="lfoot"><b>Calibration Tools</b><span>Backup FlexLife database at Tools → Database/Connection Manager</span></div>
+        <div class="lfoot"><b>Senson</b><span>Backup FlexLife database at Tools → Database/Connection Manager</span></div>
       </div>
       <p class="note">Manual Mission (laptop + SensArray FOUP) opens the Manual Mission Controller. Mission Controller monitors data collection on automation (AM) FOUPs, which is a different feature.</p>
     </section>
@@ -928,7 +928,7 @@ $$(".lbtn").forEach(b=>b.addEventListener("click",()=>show(b.dataset.go)));
 $("#launchMenu").addEventListener("click",e=>{const m=e.target.closest("[data-menu]");if(m){e.stopPropagation();const el=$("#m-"+m.dataset.menu),open=el.hidden;closeMenus();if(open){el.hidden=false;m.setAttribute("aria-expanded","true")}return}
   const a=e.target.closest("[data-lact]");if(!a)return;closeMenus();
   if(a.dataset.lact==="db")dialog("Database/Connection Manager",`<div class="formgrid"><span>Database</span><b>FlexLife (local)</b><span>Last backup</span><b>not in demo</b><span>FOUP link</span><b>192.168.10.14 · ConnectionUp</b></div><p class="hint">On the real laptop, back up the FlexLife database here before updates.</p>`,[{label:"Close"},{label:"Back up now",primary:true,fn:()=>log("Database backup requested (demo, nothing written).","w")}]);
-  if(a.dataset.lact==="about")dialog("About this demo","<p>Independent demo of a wafer temperature-calibration workflow. Not KLA software. All data is simulated unless you open your own .csv in Data Viewer.</p>");
+  if(a.dataset.lact==="about")dialog("About this demo","<p>Senson is an independent demo of a wafer temperature-calibration workflow. Not KLA software. All data is simulated unless you open your own .csv in Data Viewer.</p>");
   if(a.dataset.lact==="steps")dialog("Calibration steps",`<ol style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px"><li>Keep the laptop on its charger (charger is in the briefcase).</li><li>Connect the laptop to the SensArray FOUP. A connected wafer shows in the slot list, top-left of Manual Mission.</li><li>Open <b>Manual Mission</b>, pick the wafer, set acquisition time, sampling period, delay and start setting, then <b>Run Mission</b>.</li><li>When the wafer is back in the FOUP, use <b>Manual Mission Download</b> and wait for the download.</li><li>Tag the data once it is available.</li><li>In <b>Data Viewer</b>, File → Export to .csv and save under C:\\LAM SensArray.</li></ol>`)});
 
 /* ================= MISSION CONTROLLER (AM FOUP monitor) ================= */
