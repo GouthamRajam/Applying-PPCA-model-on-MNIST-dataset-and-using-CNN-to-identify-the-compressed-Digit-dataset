@@ -24,3 +24,17 @@ python -m pytest -q tests     # 17 tests
 | Profile Comparison / Match Analyzer / Chamber Matching | `sensarray/matching.py` |
 
 CSV format: optional `# key=value` tag lines, then a header `time_s,S1,S2,...`.
+
+## Windows desktop app (`desktop/`)
+
+Senson as a Windows app: watches the mission-data folder (default `C:\LAM SensArray`), opens new
+mission files in Data Viewer automatically or after a pop-up, shows the USB/network link to the
+SensArray FOUP (adapter on `192.168.10.x`), and saves exports to disk. It never sends anything to
+the FOUP; missions are still started in the vendor software.
+
+```bash
+cd desktop
+npm install && npm start      # run from source (Windows, macOS or Linux)
+npm test                      # folder-watcher and link-check tests
+bash build-win.sh             # -> dist/Senson-win-x64.zip (portable: unzip, run Senson.exe)
+```

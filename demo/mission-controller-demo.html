@@ -439,7 +439,7 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
         <div class="win-title"><i class="ico"></i>Senson Tools Launcher</div>
         <div class="menubar" id="launchMenu">
           <div><button data-menu="ltools" aria-expanded="false">Tools</button>
-            <div class="menu" id="m-ltools" hidden><button data-lact="db">Database/Connection Manager…</button></div></div>
+            <div class="menu" id="m-ltools" hidden><button data-lact="auto">Auto-import &amp; connection settings…</button><button data-lact="db">Database/Connection Manager…</button></div></div>
           <div><button data-menu="lhelp" aria-expanded="false">Help</button>
             <div class="menu" id="m-lhelp" hidden><button data-lact="about">About this demo</button><button data-lact="steps">Calibration steps</button></div></div>
         </div>
@@ -1095,6 +1095,7 @@ function setCurrent(run,name){current=run;currentName=name;dv.excluded=new Set()
 $$(".lbtn").forEach(b=>b.addEventListener("click",()=>show(b.dataset.go)));
 $("#launchMenu").addEventListener("click",e=>{const m=e.target.closest("[data-menu]");if(m){e.stopPropagation();const el=$("#m-"+m.dataset.menu),open=el.hidden;closeMenus();if(open){el.hidden=false;m.setAttribute("aria-expanded","true")}return}
   const a=e.target.closest("[data-lact]");if(!a)return;closeMenus();
+  if(a.dataset.lact==="auto")deskSettingsDialog();
   if(a.dataset.lact==="db")dialog("Database/Connection Manager",`<div class="formgrid"><span>Database</span><b>FlexLife (local)</b><span>Last backup</span><b>not in demo</b><span>FOUP link</span><b>192.168.10.14 · ConnectionUp</b></div><p class="hint">On the real laptop, back up the FlexLife database here before updates.</p>`,[{label:"Close"},{label:"Back up now",primary:true,fn:()=>log("Database backup requested (demo, nothing written).","w")}]);
   if(a.dataset.lact==="about")dialog("About this demo","<p>Senson is an independent demo of a wafer temperature-calibration workflow. Not KLA software. All data is simulated unless you open your own .csv in Data Viewer.</p>");
   if(a.dataset.lact==="steps")dialog("Calibration steps",`<ol style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px"><li>Keep the laptop on its charger (charger is in the briefcase).</li><li>Connect the laptop to the SensArray FOUP. A connected wafer shows in the slot list, top-left of Manual Mission.</li><li>Open <b>Manual Mission</b>, pick the wafer, set acquisition time, sampling period, delay and start setting, then <b>Run Mission</b>.</li><li>When the wafer is back in the FOUP, use <b>Manual Mission Download</b> and wait for the download.</li><li>Tag the data once it is available.</li><li>In <b>Data Viewer</b>, File → Export to .csv and save under C:\\LAM SensArray.</li></ol>`)});
@@ -1105,7 +1106,8 @@ const foups=[{id:"AF-01",station:"Station 1",tool:"GTT483",chamber:"PM3",wafer:"
   {id:"AF-02",station:"Station 1",tool:"GTT422",chamber:"PM6",wafer:"103665HP",step:4,p:70},
   {id:"AF-03",station:"Station 2",tool:"GTT483",chamber:"PM1",wafer:"104208KA",step:0,p:0}];
 const amcResults=[];let amcTimer=null,amcPaused=false;
-function amcTick(){if(amcPaused)return;foups.forEach((f,i)=>{f.p+=[4,12,6,14,18,3][f.step]*(1+i*.15);if(f.p<100)return;f.p=0;
+function amcTick(){if(amcPaused)return;if(window.senson&&window.senson.desktop&&view!=="amc")return; // desktop: simulation runs only while its screen is open
+foups.forEach((f,i)=>{f.p+=[4,12,6,14,18,3][f.step]*(1+i*.15);if(f.p<100)return;f.p=0;
   if(f.step===4){const d=chamberDefs[f.chamber]||chamberDefs.PM1;const run=simulate(Object.assign({},d,{seed:Math.floor(Math.random()*1e6),tags:{tool:f.tool,chamber:f.chamber,recipe:"AUTO-QUAL"},
       meta:{hwid:f.wafer,date:new Date().toLocaleString(),recipe:`Automatic mission on ${f.wafer} (${f.id})`}}));
     const e=evaluate(summarize(run));amcResults.unshift({f:{...f},run,go:e.go,time:new Date().toTimeString().slice(0,8)});amcResults.splice(8);
@@ -1306,11 +1308,11 @@ function csvText(){const r=current,m=r.meta||{},lines=[];
   r.t.forEach((t,i)=>lines.push([t.toFixed(3)].concat(r.T[i].map(v=>v.toFixed(3))).join(",")));return lines.join("\n")}
 function exportCSV(){const m=current.meta||{},name=`C:\\LAM SensArray\\${m.hwid||"wafer"}_${current.tags.chamber||"PM"}_${(m.date||"").replace(/[\/: ,]+/g,"-")}.csv`,txt=csvText();
   dialog("Export to .csv",`<p style="margin:0">Save as <code>${esc(name)}</code></p><p class="hint" style="margin:0">This demo page can't write files. Copy the text below and paste it into a new .csv file.</p><textarea id="csvOut" readonly>${esc(txt)}</textarea>`,
-    [{label:"Close"},{label:"Copy CSV",primary:true,fn:()=>{const ta=$("#csvOut");if(navigator.clipboard)navigator.clipboard.writeText(txt).then(()=>log("CSV copied to clipboard.","g"),()=>{ta.focus();ta.select()});else{ta.focus();ta.select()}return false}}])}
+    [{label:"Close"},...(DESK?[{label:`Save to ${deskCfg.exportDir}`,fn:()=>{DESK.saveFile(deskCfg.exportDir,name.split("\\").pop(),txt).then(p=>log("Saved "+p,"g"),e=>log("Save failed: "+e.message,"e"))}}]:[]),{label:"Copy CSV",primary:true,fn:()=>{const ta=$("#csvOut");if(navigator.clipboard)navigator.clipboard.writeText(txt).then(()=>log("CSV copied to clipboard.","g"),()=>{ta.focus();ta.select()});else{ta.focus();ta.select()}return false}}])}
 $("#csvFile").addEventListener("change",e=>{const file=e.target.files[0];if(!file)return;const fr=new FileReader();fr.onload=()=>{try{loadCSV(fr.result,file.name)}catch(err){log("Could not read "+file.name+": "+err.message,"e")}};fr.readAsText(file);e.target.value=""});
 /* ---- CSV import: parse, then let the user confirm which columns are sensors ---- */
 const NOT_SENSOR=/time|sec|sample|index|^no\.?$|^#|date|clock|step|batt|volt|ambient|board|ref|status|count/i;
-function loadCSV(text,name,target){const lines=text.split(/\r?\n/).filter(l=>l.trim()),tags={};const rows=[];let xs=null,ys=null,header=null;
+function loadCSV(text,name,target,auto){const lines=text.split(/\r?\n/).filter(l=>l.trim()),tags={};const rows=[];let xs=null,ys=null,header=null;
   const num=c=>{c=(c||"").trim().replace(/^"|"$/g,"");return c===""?NaN:Number(c)}; // blank cell = missing, never 0
   for(const l of lines){if(l.startsWith("#")){const[k,...v]=l.slice(1).split("=");if(v.length)tags[k.trim()]=v.join("=").trim();continue}
     const cells=l.split(/[,;\t]/);const lab=cells[0].toLowerCase().replace(/[^a-z]/g,"");const rest=cells.slice(1).map(num);
@@ -1326,7 +1328,9 @@ function loadCSV(text,name,target){const lines=text.split(/\r?\n/).filter(l=>l.t
     cols.push({j,nm,n:f.length,mn,mx,mean,why})}
   // time column: first column whose name says time, else the first column
   let tj=cols.findIndex(c=>/time|sec/i.test(c.nm));if(tj<0)tj=0;
-  showImport({name,rows,cols,tj,xs,ys,tags,target:target||"dv"})}
+  const d={name,rows,cols,tj,xs,ys,tags,target:target||"dv"};
+  if(auto){const picked=cols.filter(c=>c.j!==tj&&!c.why).map(c=>c.j);if(picked.length){buildRun(d,tj,picked);log(`Auto-imported ${name}: ${picked.length} sensor columns (columns marked as not-a-sensor were skipped).`,"g");return}}
+  showImport(d)}
 function showImport(d){const sensorCols=d.cols.filter(c=>c.j!==d.tj);
   const body=`<p class="hint" style="margin:0">Tick the columns that are temperature sensors. Columns that are blank, always 0, count up, or are named like time/index/battery are unticked for you.</p>
     <div class="row" style="margin:0"><label for="impTime"><b>Time column</b></label><select id="impTime">${d.cols.map(c=>`<option value="${c.j}" ${c.j===d.tj?"selected":""}>${esc(c.nm)}</option>`).join("")}</select>
@@ -1356,7 +1360,7 @@ function buildRun(d,tj,picked){const{rows,name,tags,xs,ys}=d;
   log(`Loaded ${name}: ${run.t.length} samples × ${k} sensors (time = "${d.cols[tj].nm}").`,"g");
   if(skipped.length)log(`Not used as sensors: ${skipped.map(c=>c.nm).join(", ")}.`,"w");
   if(!run.pos)log("No sensor positions in this file. The map needs them: use Load sensor positions….","w");
-  if(d.target==="A"||d.target==="B"){wvPending[d.target]=key;show("wv");log(`${key} set as Wafer ${d.target}.`,"g")}else renderViewer()}
+  if(d.target==="A"||d.target==="B"){wvPending[d.target]=key;show("wv");log(`${key} set as Wafer ${d.target}.`,"g")}else show("viewer")}
 function normPos(map){const v=Object.values(map).flat(),mx=Math.max(...v.map(Math.abs)),mn=Math.min(...v);
   if(mx<=1.01){for(const k in map)map[k]=[map[k][0]*R,map[k][1]*R];log("Positions looked normalized (−1…1); scaled to mm.","w")}
   else if(mn>=0&&mx<=2*R+.5&&mx>R+10){for(const k in map)map[k]=[map[k][0]-R,map[k][1]-R];log(`Positions looked like 0…${2*R} mm with a ${R} mm offset; centered them`,"w")}
@@ -1367,7 +1371,9 @@ function loadPositions(text,name){const map={};let seq=0;
   const cnt=Object.keys(map).length;if(cnt<3){log(`${name}: no positions found. Use rows of "site, x, y" in mm.`,"e");return}
   normPos(map);current.pos=map;posLib[current.ids.length]=map;
   const miss=current.ids.filter(i=>!map[i]).length;
-  log(`Loaded ${cnt} sensor positions from ${name}${miss?`; ${miss} sensors still without a position`:""}.`,miss?"w":"g");renderViewer()}
+  log(`Loaded ${cnt} sensor positions from ${name}${miss?`; ${miss} sensors still without a position`:""}.`,miss?"w":"g");
+  if(DESK){deskCfg={...deskCfg,positionsText:text,positionsName:name};DESK.setSettings({positionsText:text,positionsName:name});log("Positions saved: new mission files with the same sensor count will use them automatically.","g")}
+  renderViewer()}
 $("#posFile").addEventListener("change",e=>{const file=e.target.files[0];if(!file)return;const fr=new FileReader();fr.onload=()=>loadPositions(fr.result,file.name);fr.readAsText(file);e.target.value=""});
 
 /* ================= ANALYSIS VIEWS ================= */
@@ -1646,11 +1652,49 @@ function renderLimits(){$("#limTable").innerHTML=`<tr><th>Metric</th><th>LSL</th
 $("#limSave").addEventListener("click",()=>{template.limits.forEach((l,i)=>{const a=$("#lsl-"+i).value,b=$("#usl-"+i).value;l.lsl=a===""?null:+a;l.usl=b===""?null:+b});log("Control limits saved to "+template.name+".","g")});
 
 /* ================= boot ================= */
+if(!(window.senson&&window.senson.desktop)){ // browser demo: simulated start-up messages
 log("Network Status Changed: ConnectionUp Local IP: 192.168.10.14");
 log("Usage for Wafer [103665HP] = Total: 00:00:30, Remaining: 03:59:30, Limit: 04:00:00");
 log("Wafer [103665HP] - Wafer Ready","g");
 log("Wafer [103665HP] - Voltage: 4.014V");
-log("Old Manual Mission file count is above the maximum limit in FOUP","w");
+log("Old Manual Mission file count is above the maximum limit in FOUP","w");}
+else{$("#foupText").textContent="Checking FOUP connection…";$("#runText").textContent="No mission data yet";
+  $("#v-mc .win-title").insertAdjacentHTML("beforeend",' <span class="hint">· simulation (start real missions in the vendor software)</span>');
+  $("#v-amc .win-title").insertAdjacentHTML("beforeend",' <span class="hint">· simulation</span>')}
+/* ================= DESKTOP APP (Windows) =================
+   Only active inside the Senson desktop app (window.senson comes from its preload script).
+   The app watches the mission-data folder and the USB/network link to the FOUP; it never sends anything to the FOUP. */
+const DESK=window.senson&&window.senson.desktop?window.senson:null;let deskCfg={};
+function registerPositions(text){const map={};let seq=0;
+  for(const l of text.split(/\r?\n/)){const c=l.split(/[,;\t ]+/).map(x=>x.trim()).filter(Boolean),n=c.map(Number);if(!c.length||!n.every(isFinite))continue;
+    if(n.length>=3)map[Math.round(n[0])]=[n[1],n[2]];else if(n.length===2)map[++seq]=[n[0],n[1]]}
+  const k=Object.keys(map).length;if(k>=3){normPos(map);posLib[k]=map}return k}
+function setLink(l){const chip=$("#foupText");chip.textContent=l.up?`FOUP connected · ${l.address}`:"FOUP not connected · check USB";chip.previousElementSibling.style.background=l.up?"#6ee787":"#f87171";
+  log(l.up?`Network Status Changed: ConnectionUp Local IP: ${l.address} (${l.ifname})`:"Network Status Changed: ConnectionDown (no adapter on the FOUP subnet). Check the USB cable.",l.up?"g":"w")}
+function onMissionFile(d){log(`New mission file in ${d.dir}: ${d.name}`,"g");
+  if(deskCfg.mode==="auto"){try{loadCSV(d.text,d.name,"dv",true)}catch(e){log("Could not read "+d.name+": "+e.message,"e")}return}
+  dialog("New mission data",`<p style="margin:0"><b>${esc(d.name)}</b> has arrived in <code>${esc(d.dir)}</code>.</p><p class="hint" style="margin:0">Open it in Data Viewer now?</p>`,
+    [{label:"Later"},{label:"Open in Data Viewer",primary:true,fn:()=>{setTimeout(()=>{try{loadCSV(d.text,d.name,"dv")}catch(e){log("Could not read "+d.name+": "+e.message,"e")}},0)}}])}
+function deskSettingsDialog(){
+  if(!DESK){dialog("Auto-import settings","<p>Auto-import and the FOUP connection check work in the Senson desktop app for Windows. In a browser, use Data Viewer → File → Open .csv… instead.</p>");return}
+  const c=deskCfg;
+  dialog("Auto-import & connection settings",`<div class="formgrid">
+    <label for="dsWatch">Watch folder</label><div class="row" style="margin:0"><input type="text" id="dsWatch" value="${esc(c.watchDir||"")}" style="flex:1;min-width:0"><button class="btn" id="dsWatchB">Browse…</button></div>
+    <span>New mission data</span><div><label class="row" style="margin:0"><input type="radio" name="dsMode" value="auto" ${c.mode==="auto"?"checked":""}> Open in Data Viewer automatically</label>
+      <label class="row" style="margin:0"><input type="radio" name="dsMode" value="ask" ${c.mode!=="auto"?"checked":""}> Ask with a pop-up first</label></div>
+    <label for="dsExport">Export folder</label><div class="row" style="margin:0"><input type="text" id="dsExport" value="${esc(c.exportDir||"")}" style="flex:1;min-width:0"><button class="btn" id="dsExportB">Browse…</button></div>
+    <label for="dsPrefix">FOUP subnet</label><input type="text" id="dsPrefix" value="${esc(c.foupPrefix||"192.168.10.")}">
+    </div><p class="hint" style="margin:0">Point the watch folder at the place where your mission files are saved (for example C:\\LAM SensArray). Senson checks it every 2 seconds and waits until a file has finished writing.${c.positionsName?` Saved sensor positions: ${esc(c.positionsName)}.`:""}</p>`,
+    [{label:"Cancel"},{label:"Save",primary:true,fn:()=>{const s={watchDir:$("#dsWatch").value.trim(),exportDir:$("#dsExport").value.trim(),foupPrefix:$("#dsPrefix").value.trim()||"192.168.10.",mode:document.querySelector("input[name=dsMode]:checked").value};
+      DESK.setSettings(s).then(r=>{deskCfg=r;log(`Settings saved. Watching ${r.watchDir}; new data: ${r.mode==="auto"?"open automatically":"ask first"}.`,"g")})}}]);
+  $("#dsWatchB").addEventListener("click",()=>DESK.pickFolder($("#dsWatch").value).then(p=>{if(p)$("#dsWatch").value=p}));
+  $("#dsExportB").addEventListener("click",()=>DESK.pickFolder($("#dsExport").value).then(p=>{if(p)$("#dsExport").value=p}))}
+if(DESK){DESK.getSettings().then(c=>{deskCfg=c;
+    $(".brand small").textContent="desktop app · independent, not KLA software";
+    if(c.positionsText){const k=registerPositions(c.positionsText);if(k)log(`Using saved ${k}-sensor positions (${c.positionsName}).`)}
+    log(`Watching ${c.watchDir} for new mission files. New data: ${c.mode==="auto"?"opens Data Viewer automatically":"asks with a pop-up"}. Change in Tools → Auto-import & connection settings.`,"g")});
+  DESK.onMission(onMissionFile);DESK.onLink(setLink);DESK.onLog(m=>log(m,"w"))}
+
 show("home");
 })();
 </script>

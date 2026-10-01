@@ -1,0 +1,16 @@
+{
+  "name": "senson",
+  "productName": "Senson",
+  "version": "1.0.0",
+  "description": "Senson: wafer temperature-calibration analysis (independent; not KLA or Lam software)",
+  "main": "main.js",
+  "scripts": {
+    "prestart": "node prepare-app.js",
+    "start": "electron .",
+    "test": "node test/watcher.test.js",
+    "build:win": "bash build-win.sh"
+  },
+  "devDependencies": {
+    "electron": "33.2.1"
+  }
+}
