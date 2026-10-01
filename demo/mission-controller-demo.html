@@ -617,7 +617,7 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
           </div>
           <div>
             <div class="wv-sec">Cross-sections</div>
-            <div class="row" style="margin:0"><label for="wvAng">Angle</label><input type="number" id="wvAng" value="0" step="15" style="width:64px"><span>°</span></div>
+            <div class="row" style="margin:0"><label for="wvAng">Angle</label><input type="number" id="wvAng" value="0" step="15" style="width:64px"><span>°</span><label for="wvXEdge">Edge exc.</label><input type="number" id="wvXEdge" value="0" min="0" step="1" style="width:56px"><span>mm</span></div>
             <div style="display:grid;grid-template-columns:130px 1fr;gap:10px;align-items:center">
               <canvas id="cvWvMini" style="height:130px"></canvas>
               <div><b style="font-size:12px">Cross section statistics</b><div class="wvst" id="wvXs"></div></div>
@@ -701,6 +701,10 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
 <script>
 (function(){
 "use strict";
+/* Display rounding: round half away from zero (29.165 -> 29.17), like Wafer Viewer.
+   JavaScript's built-in toFixed rounds 29.165 down to 29.16 because of binary floating point. */
+(function(){const tf=Number.prototype.toFixed;Number.prototype.toFixed=function(d){const v=+this;d=d||0;if(!isFinite(v))return tf.call(v,d);
+  const f=Math.pow(10,d),r=Math.sign(v)*Math.round(Math.abs(v)*f*(1+1e-12)+1e-9)/f;return tf.call(r,d)}})();
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const fmt=(v,d=2)=>v==null||!isFinite(v)?"—":Number(v).toFixed(d);
@@ -807,6 +811,11 @@ function solve(A,b){const n=b.length;for(let c=0;c<n;c++){let p=c;for(let r=c+1;
   [A[c],A[p]]=[A[p],A[c]];[b[c],b[p]]=[b[p],b[c]];for(let r=c+1;r<n;r++){const f=A[r][c]/A[c][c];if(!f)continue;for(let k=c;k<n;k++)A[r][k]-=f*A[c][k];b[r]-=f*b[c]}}
   const x=new Float64Array(n);for(let r=n-1;r>=0;r--){let s=b[r];for(let k=r+1;k<n;k++)s-=A[r][k]*x[k];x[r]=s/A[r][r]}return x}
 const phi=r=>r>0?r*r*Math.log(r):0;
+/* Map interpolation for display: no extrapolation beyond the outermost sensors (value held flat
+   along the radius) and never outside the measured min/max, like Wafer Viewer's maps. */
+function mapInterpolator(pts,vals,method){const f=interpolator(pts,vals,method);if(!pts.length)return f;
+  const rOut=Math.max(...pts.map(p=>Math.hypot(p[0],p[1]))),lo=Math.min(...vals),hi=Math.max(...vals);
+  return(x,y)=>{const r=Math.hypot(x,y);if(r>rOut&&r>0){x*=rOut/r;y*=rOut/r}const v=f(x,y);return v<lo?lo:v>hi?hi:v}}
 function interpolator(pts0,vals0,method){
   // merge sensors that share a position (a singular system otherwise gives NaN everywhere)
   const pts=[],vals=[],cnt=[];pts0.forEach((p,i)=>{if(!isFinite(p[0])||!isFinite(p[1])||!isFinite(vals0[i]))return;
@@ -1177,7 +1186,7 @@ function renderMap(){if(!dv.mapOpen)return;const c=$("#cvMap");if(!c.clientWidth
   const stAll=rowStats(allVals);
   $("#mapStats").innerHTML=[["Mean",stAll.mean],["3-sigma",stAll.three],["Range",stAll.range],["Max",stAll.max],["Min",stAll.min]].map(a=>`<b>${a[0]}</b><span>: ${a[1].toFixed(2)}</span>`).join("")+`<b>Sensors</b><span>: ${allVals.length}</span>`;
   if(pts.length<3){g.fillStyle=css("--warn");g.font="600 13px "+css("--sans");g.fillText("Sensor positions unknown for this file.",12,24);g.fillStyle=css("--muted");g.font="13px "+css("--sans");g.fillText("Statistics below use all sensors.",12,44);g.fillText("File → Load sensor positions… to draw the map.",12,64);$("#mapLegend").innerHTML="";return}
-  const f=interpolator(pts,vals,"tps");let[lo,hi]=mapScale(allVals);if(hi-lo<1e-6){hi=lo+.01}
+  const f=mapInterpolator(pts,vals,"tps");let[lo,hi]=mapScale(allVals);if(hi-lo<1e-6){hi=lo+.01}
   const discrete=$("#optContour").checked,step=(hi-lo)/12;
   // legend: 13 levels, hottest first
   $("#mapLegend").innerHTML=[...Array(13)].map((_,k)=>{const v=hi-k*step;return`<div><i style="background:${rgb(BINS[12-k])}"></i>${v.toFixed(2)}</div>`}).join("");
@@ -1410,7 +1419,7 @@ function renderWV(){
   $("#wvSites").textContent=ids.length;
   const siteSt=vals.length?rowStats(vals):null;
   const pz=positioned(posRun,ids,vals),P=pz.P,V=pz.V,edge=Math.max(0,+$("#wvEdge").value||0),Re=R-edge;
-  const f=P.length>=3?interpolator(P,V,"tps"):null;
+  const f=P.length>=3?mapInterpolator(P,V,"tps"):null;
   const N=110,grid=[];if(f)for(let j=0;j<N;j++)for(let i=0;i<N;i++){const x=((i+.5)/N*2-1)*R,y=(1-(j+.5)/N*2)*R;if(x*x+y*y<=Re*Re)grid.push([x,y,f(x,y)])}
   const mapSt=grid.length?rowStats(grid.map(q=>q[2])):null;
   $("#wvStats").innerHTML=statsHTML($("#wvSrc").value==="map"?mapSt:siteSt,$("#wvSrc").value==="map"?null:ids.length);
@@ -1458,7 +1467,7 @@ function renderWV(){
     g.strokeStyle="#000";g.lineWidth=1.5;g.beginPath();g.arc(cx,cy,S,0,7);g.stroke();
     g.fillStyle=css("--panel");g.beginPath();g.arc(cx,cy+S,5,Math.PI,0);g.fill();
     g.fillStyle=css("--muted");g.font="11px "+css("--mono");g.textAlign="center";g.textBaseline="top";
-    ticks(-R*.85,R*.85,6).forEach(v=>g.fillText(v.toFixed(1),cx+v/R*S,cy+S+8));
+    {const st=R*40/150;for(let v=-Math.floor(R*.9/st)*st;v<=R*.9+1e-9;v+=st)g.fillText(v.toFixed(1),cx+v/R*S,cy+S+8)}
     if($("#wvShowSites").checked||$("#wvShowVals").checked){g.font="600 10.5px "+css("--mono");g.textBaseline="bottom";
       P.forEach((p,i)=>{const x=cx+p[0]/R*S,y=cy-p[1]/R*S;if($("#wvShowSites").checked){g.fillStyle="#000";g.beginPath();g.arc(x,y,2.6,0,7);g.fill()}
         if($("#wvShowVals").checked){g.fillStyle="#000";g.fillText(V[i].toFixed(2),x,y-3)}})}
@@ -1469,7 +1478,7 @@ function renderWV(){
     ticks(lo,hi,6).forEach(v=>{const y=by+(1-(v-lo)/(hi-lo))*bh;g.fillRect(bx+16,y,4,1);g.fillText(v.toFixed(2),bx+22,y)});
     g.textBaseline="bottom";g.fillText(hi.toFixed(2)+" °C",bx-6,by-2);g.textBaseline="top";g.fillText(lo.toFixed(2)+" °C",bx-6,by+bh+2)}
   // ---- cross-section ----
-  const ang=(+$("#wvAng").value||0)*Math.PI/180,xsX=[],xsY=[];if(f)for(let s2=-Re;s2<=Re+1e-9;s2+=2){xsX.push(s2);xsY.push(f(s2*Math.cos(ang),s2*Math.sin(ang)))}
+  const ang=(+$("#wvAng").value||0)*Math.PI/180,xsX=[],xsY=[],Rx=R-Math.max(0,+$("#wvXEdge").value||0);if(f)for(let s2=-Rx;s2<=Rx+1e-9;s2+=1){xsX.push(s2);xsY.push(f(s2*Math.cos(ang),s2*Math.sin(ang)))}
   $("#wvXs").innerHTML=xsY.length?statsHTML(rowStats(xsY)):'<span class="hint">needs positions</span>';
   const mc=$("#cvWvMini");if(mc.clientWidth){const{g,w,h}=setup(mc),S=Math.min(w,h)/2-4,cx=w/2,cy=h/2;g.strokeStyle=css("--ink");g.beginPath();g.arc(cx,cy,S,0,7);g.stroke();
     g.fillStyle=css("--bad");P.forEach(p=>{g.fillRect(cx+p[0]/R*S-1.2,cy-p[1]/R*S-1.2,2.4,2.4)});
@@ -1489,7 +1498,7 @@ function renderWV(){
     g.strokeStyle=css("--ink");g.lineWidth=1.2;g.beginPath();for(let k=0;k<=80;k++){const x=hs.min+k/80*nb*bw,px=X(x),py=Y(pdf(x));k?g.lineTo(px,py):g.moveTo(px,py)}g.stroke();
     g.fillStyle=css("--muted");g.textAlign="center";g.textBaseline="top";[hs.min,hs.mean,hs.max].forEach(v=>g.fillText(v.toFixed(2),X(v),h-Bm+6))}
 }
-["#wvA","#wvB","#wvMath","#wvMode","#wvEdge","#wvSrc","#wvScale","#wvUp","#wvLo","#wvShowSites","#wvShowVals","#wvShowCom","#wvAng","#wvHsrc","#wvRes","#wvR0","#wvZone","#wvRings","#wvQrot"].forEach(x=>$(x).addEventListener("input",renderWV));
+["#wvA","#wvB","#wvMath","#wvMode","#wvEdge","#wvSrc","#wvScale","#wvUp","#wvLo","#wvShowSites","#wvShowVals","#wvShowCom","#wvAng","#wvXEdge","#wvHsrc","#wvRes","#wvR0","#wvZone","#wvRings","#wvQrot"].forEach(x=>$(x).addEventListener("input",renderWV));
 $("#wvB").addEventListener("change",()=>{if($("#wvB").value&&$("#wvMath").value==="A")$("#wvMath").value="A-B";renderWV()});
 $("#dvWhole").addEventListener("click",()=>{const r=current;$("#dvEndOn").checked=true;$("#dvEnd").disabled=false;$("#dvEnd").value=+r.t[r.t.length-1].toFixed(2);setStart(r.t[0]);log(`Statistics now average each sensor over the whole run (${r.t[0]}–${r.t[r.t.length-1]} s).`)});
 $("#dvDdof").addEventListener("change",()=>{$("#wvDdof").value=$("#dvDdof").value;$("#wvDdof").dispatchEvent(new Event("change"));renderViewer()});
