@@ -193,6 +193,22 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
 .mini{height:6px;background:var(--panel2);border-radius:3px;overflow:hidden;width:120px;display:inline-block;vertical-align:middle}
 .mini i{display:block;height:100%;background:linear-gradient(90deg,var(--op),var(--an))}
 @media (max-width:700px){.lgrid{grid-template-columns:1fr}}
+/* ---- wafer viewer ---- */
+#v-wv{--pc:var(--an)}
+.wv-bar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);font-size:13px;background:color-mix(in srgb,var(--an) 5%,var(--panel))}
+.wv-bar select{max-width:240px}
+.wv-bar input[type=number]{width:64px}
+.wv-grid{display:grid;grid-template-columns:230px minmax(0,1.25fr) minmax(0,1fr);gap:0}
+.wv-grid>div{min-width:0;padding:10px 12px;border-right:1px solid var(--line)}
+.wv-grid>div:last-child{border-right:0}
+.wv-sec{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--an);margin:10px 0 4px}
+.wv-sec:first-child{margin-top:0}
+.wvst{font-family:var(--mono);font-size:12.5px;line-height:1.55;font-variant-numeric:tabular-nums}
+.wv-opt{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;font-size:13px}
+.wv-opt input[type=number]{width:72px}
+.wv-spatial{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;padding:10px 12px;border-top:1px solid var(--line)}
+.wv-warn{background:var(--warn-soft);color:var(--warn);padding:6px 10px;font-size:13px;border-radius:4px}
+@media (max-width:1150px){.wv-grid{grid-template-columns:1fr}.wv-grid>div{border-right:0;border-bottom:1px solid var(--line)}}
 /* ---- dialogs ---- */
 .modal{position:fixed;inset:0;background:rgba(10,15,20,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
 .dlg{background:var(--panel);border-radius:8px;max-width:640px;width:100%;max-height:90%;overflow:auto;border-top:4px solid var(--op);box-shadow:0 20px 50px rgba(0,0,0,.3)}
@@ -242,6 +258,7 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
     <button class="an" data-v="profile">Profile Comparison</button>
     <button class="an" data-v="chamber">Chamber Matching</button>
     <button class="an" data-v="interp">Data Interpolator</button>
+    <button class="an" data-v="wv">Wafer Viewer (compare)</button>
     <h3 class="cf">Configuration</h3>
     <button class="cf" data-v="recipe">Recipe Flow Configurator</button>
     <button class="cf" data-v="tagging">Modify Mission Tagging</button>
@@ -318,6 +335,7 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
           <div><button data-menu="file" aria-expanded="false">File</button>
             <div class="menu" id="m-file" hidden>
               <button data-act="open">Open .csv…</button>
+              <button data-act="pos">Load sensor positions…</button>
               <button data-act="export">Export to .csv…</button>
               <hr><button data-act="example">Reload example data</button>
             </div></div>
@@ -342,6 +360,7 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
             <div class="menu" id="m-win" hidden>
               <button data-act="gohome">Tools Launcher</button><button data-act="gomc">Manual Mission</button>
               <button data-act="gointerp">Data Interpolator</button>
+              <button data-act="gowv">Wafer Viewer (compare)</button>
             </div></div>
         </div>
         <div class="doctab" id="docTab"></div>
@@ -407,6 +426,7 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
       </div>
       <p class="note">On the real tool: when the wafer is back in the FOUP, wait for the download, tag the data, then File → Export to .csv and save under C:\LAM SensArray. Here, File → Open .csv… loads an exported file into this viewer.</p>
       <input type="file" id="csvFile" accept=".csv,.txt" hidden>
+      <input type="file" id="posFile" accept=".csv,.txt" hidden>
     </section>
 
     <!-- ================= LAUNCHER ================= -->
@@ -554,6 +574,69 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
       </div>
     </section>
 
+    <!-- ================= WAFER VIEWER (compare) ================= -->
+    <section class="view" id="v-wv" hidden>
+      <div class="win">
+        <div class="win-title"><i class="ico"></i>Wafer Viewer · site statistics and wafer comparison</div>
+        <div class="wv-bar">
+          <label for="wvA"><b>Wafer A</b></label><select id="wvA"></select>
+          <label for="wvB"><b>Wafer B</b></label><select id="wvB"></select>
+          <label for="wvMath">Display</label><select id="wvMath"><option value="A">Wafer A</option><option value="B">Wafer B</option><option value="A-B">A − B</option><option value="B-A">B − A</option><option value="avg">(A + B) / 2</option></select>
+          <label for="wvMode">Site values</label><select id="wvMode"><option value="avg">Whole-run average</option><option value="ss">Steady-state average</option><option value="dv">Data Viewer start/end point</option></select>
+          <span>Units °C</span>
+          <label for="wvEdge">Edge</label><input type="number" id="wvEdge" value="3" min="0" step="1"><span>mm</span>
+          <span>Sites <b id="wvSites">–</b></span><span>Size 300 mm</span>
+          <label for="wvDdof">Sigma</label><select id="wvDdof"><option value="1">sample (n − 1)</option><option value="0">population (n)</option></select>
+        </div>
+        <div class="wv-grid">
+          <div>
+            <div class="wv-sec">Wafer statistics</div>
+            <select id="wvSrc"><option value="data">Data (sites)</option><option value="map">Interpolated map</option></select>
+            <div class="wvst" id="wvStats" style="margin-top:6px"></div>
+            <div class="wv-sec">Scale</div>
+            <div class="wv-opt">
+              <label for="wvScale">Scale</label><select id="wvScale"><option value="mm">Max/Min</option><option value="user">User</option></select>
+              <label for="wvUp">Upper</label><input type="number" id="wvUp" step="0.01">
+              <label for="wvLo">Lower</label><input type="number" id="wvLo" step="0.01">
+            </div>
+            <div class="wv-sec">Show</div>
+            <div class="row" style="margin:2px 0"><input type="checkbox" id="wvShowSites" checked><label for="wvShowSites">Show sites</label></div>
+            <div class="row" style="margin:2px 0"><input type="checkbox" id="wvShowVals" checked><label for="wvShowVals">Show values</label></div>
+            <div class="row" style="margin:2px 0"><input type="checkbox" id="wvShowCom" checked><label for="wvShowCom">Show center of mass</label></div>
+            <div class="wv-sec">Wafer info</div>
+            <div class="wvst" id="wvInfo" style="font-family:var(--sans)"></div>
+          </div>
+          <div>
+            <div id="wvWarn" class="wv-warn" hidden></div>
+            <canvas id="cvWv" style="height:470px"></canvas>
+          </div>
+          <div>
+            <div class="wv-sec">Cross-sections</div>
+            <div class="row" style="margin:0"><label for="wvAng">Angle</label><input type="number" id="wvAng" value="0" step="15" style="width:64px"><span>°</span></div>
+            <div style="display:grid;grid-template-columns:130px 1fr;gap:10px;align-items:center">
+              <canvas id="cvWvMini" style="height:130px"></canvas>
+              <div><b style="font-size:12px">Cross section statistics</b><div class="wvst" id="wvXs"></div></div>
+            </div>
+            <canvas id="cvWvX" style="height:180px"></canvas>
+            <div class="wv-sec">Wafer histogram</div>
+            <div class="row" style="margin:0"><label for="wvHsrc">Data source</label><select id="wvHsrc"><option value="map">Interpolated map</option><option value="data">Sites</option></select>
+              <label for="wvRes">Resolution</label><select id="wvRes"><option>0.25</option><option>0.5</option><option>1</option></select><span>std. dev.</span></div>
+            <canvas id="cvWvH" style="height:200px"></canvas>
+          </div>
+        </div>
+        <div class="wv-spatial">
+          <div><div class="wv-sec">Spatial statistics · center-to-edge</div>
+            <div class="row" style="margin:0"><label for="wvR0">Radius</label><input type="number" id="wvR0" value="75" min="0" max="150" step="5" style="width:64px"><span>mm</span></div>
+            <p class="hint" style="margin:4px 0 0">Sites inside the radius form the inner region, the rest the outer region.</p></div>
+          <div><div class="wv-sec">Inner region stats (r ≤ radius)</div><div class="wvst" id="wvIn"></div></div>
+          <div><div class="wv-sec">Outer region stats (r > radius)</div><div class="wvst" id="wvOut"></div></div>
+          <div><div class="wv-sec">Center of mass</div><div class="wvst" id="wvCom"></div>
+            <p class="hint" style="margin:4px 0 0">Weights = site value − wafer minimum, so it points toward the hot side.</p></div>
+        </div>
+      </div>
+      <p class="note">Statistics: mean, 3-sigma = 3 × standard deviation, range = max − min. Percentages are of the mean, as in Wafer Viewer. Use Wafer B with "A − B" to compare two wafers or two chambers site by site.</p>
+    </section>
+
     <!-- RECIPE FLOW -->
     <section class="view" id="v-recipe" hidden>
       <h1>Recipe Flow Configurator</h1>
@@ -625,6 +708,11 @@ const PX=[[1275,755],[1383,752],[1483,787],[1180,802],[1372,820],[1562,858],[121
 const sensors=PX.map((p,i)=>({id:i+1,x:(p[0]-1340)/275*R,y:-(p[1]-1016)/275*R,state:"en"}));
 const byId=id=>sensors[id-1];
 const enabledIds=()=>sensors.filter(s=>s.state==="en").map(s=>s.id);
+/* Sensor positions per run. Simulated runs use the Mission Controller layout.
+   Files use positions from the file or from File -> Load sensor positions; never guessed. */
+const posLib={}; // sensor count -> {id:[x,y]}
+function posOf(run,id){if(run.pos)return run.pos[id]||null;if(run.fromFile)return null;const s=byId(id);return s?[s.x,s.y]:null}
+function positioned(run,ids,vals){const P=[],V=[],I=[];ids.forEach((id,k)=>{const p=posOf(run,id);if(p){P.push(p);V.push(vals[k]);I.push(id)}});return{P,V,I}}
 
 /* ---------- process simulation ----------
    Wafer leaves the FOUP at t=0, lands on a ~92.5 °C chuck at tIn, heats with time constant tauH,
@@ -646,8 +734,9 @@ function underlyingMax(o,ta){ // hottest/coldest sensor at absolute time, for te
   const s=simulate(Object.assign({},o,{tStart:ta,dur:0,noise:0}));return s.T[0]}
 
 /* ---------- metrics ---------- */
+let DDOF=1; // 1 = sample std dev (n-1), 0 = population (n)
 function rowStats(row){const n=row.length;let s=0,mn=Infinity,mx=-Infinity;for(const v of row){s+=v;if(v<mn)mn=v;if(v>mx)mx=v}
-  const m=s/n;let q=0;for(const v of row)q+=(v-m)*(v-m);const sd=n>1?Math.sqrt(q/(n-1)):0;
+  const m=s/n;let q=0;for(const v of row)q+=(v-m)*(v-m);const sd=n>DDOF?Math.sqrt(q/(n-DDOF)):0;
   const so=[...row].sort((a,b)=>a-b),med=n%2?so[(n-1)/2]:(so[n/2-1]+so[n/2])/2;
   return {mean:m,min:mn,max:mx,range:mx-mn,sigma:sd,three:3*sd,nonu:100*3*sd/Math.abs(m),median:med}}
 function steadyWindow(t,y,win=10,maxSlope=.05,maxStd=.2){
@@ -806,7 +895,7 @@ let view="mc";
 function show(v){view=v;$$("nav button").forEach(b=>{if(b.dataset.v===v)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
   $$("main>section").forEach(s=>s.hidden=s.id!=="v-"+v);closeMenus();render();}
 $$("nav button").forEach(b=>b.addEventListener("click",()=>show(b.dataset.v)));
-function render(){({home:()=>{},amc:renderAMC,autocal:renderAutoCal,mc:renderMC,viewer:renderViewer,gonogo:renderGNG,spc:renderSPC,matchan:renderMatrix,profile:renderProfile,chamber:renderChamber,interp:renderInterp,recipe:renderFlow,tagging:renderTags,template:renderTpl,limits:renderLimits}[view]||(()=>{}))()}
+function render(){({home:()=>{},wv:renderWV,amc:renderAMC,autocal:renderAutoCal,mc:renderMC,viewer:renderViewer,gonogo:renderGNG,spc:renderSPC,matchan:renderMatrix,profile:renderProfile,chamber:renderChamber,interp:renderInterp,recipe:renderFlow,tagging:renderTags,template:renderTpl,limits:renderLimits}[view]||(()=>{}))()}
 let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(render,120)});
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",render);
 new MutationObserver(render).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
@@ -957,7 +1046,8 @@ function zoneOf(x,y,n){const r=Math.hypot(x,y)/R,a=(Math.atan2(y,x)+2*Math.PI)%(
   if(n===3)return r<.35?0:r<.7?1:2;if(n===4)return Math.floor(a/(Math.PI/2));return r<.35?0:1+Math.floor(a/(Math.PI/3))}
 function zoneName(k,n){if(n===3)return["Center","Middle","Edge"][k];if(n===4)return["Q1 (upper right)","Q2 (upper left)","Q3 (lower left)","Q4 (lower right)"][k];return k?"Sector "+k:"Center"}
 function renderAutoCal(){fillRunSelect($("#acRun"),currentName);const run=allRuns()[$("#acRun").value],s=summarize(run),set=+$("#acSet").value,n=+$("#acZones").value,gain=+$("#acGain").value;
-  const vals=s.ssT||run.T[run.T.length-1],pts=run.ids.map(i=>{const q=byId(i)||{x:0,y:0};return[q.x,q.y]});
+  const pz=positioned(run,run.ids,s.ssT||run.T[run.T.length-1]),vals=pz.V,pts=pz.P;
+  if(pts.length<3){$("#acTable").innerHTML='<tr><td class="hint">Sensor positions unknown for this run. Load them in Data Viewer → File → Load sensor positions…</td></tr>';$("#acTiles").innerHTML="";return}
   const zs=[...Array(n)].map(()=>[]);pts.forEach((p,i)=>zs[zoneOf(p[0],p[1],n)].push(vals[i]));
   const rows=zs.map((v,k)=>{const m=v.length?avg(v):NaN;return{k,m,n:v.length,off:gain*(set-m)}});
   const after=pts.map((p,i)=>{const z=rows[zoneOf(p[0],p[1],n)];return vals[i]+(isFinite(z.off)?z.off:0)});
@@ -1051,19 +1141,23 @@ function mapScale(vals){const r=current;
   // fixed: whole-mission range of the selected sensors
   let lo=Infinity,hi=-Infinity;r.T.forEach(row=>row.forEach((v,j)=>{if(!dv.excluded.has(r.ids[j])){lo=Math.min(lo,v);hi=Math.max(hi,v)}}));return[lo,hi]}
 function renderMap(){if(!dv.mapOpen)return;const c=$("#cvMap");if(!c.clientWidth)return;
-  const{ids,vals}=dvValues();const{g,w,h}=setup(c);
+  let{ids,vals}=dvValues();const allVals=vals;const{g,w,h}=setup(c);
   $("#mapTime").textContent=$("#dvEndOn").checked?`average ${dv.start.toFixed(1)}–${(+$("#dvEnd").value).toFixed(1)} s`:`t = ${dv.start.toFixed(1)} s`;
   if(ids.length<3){g.fillStyle=css("--muted");g.font="13px "+css("--sans");g.fillText("Select at least 3 sensors.",12,24);$("#mapStats").innerHTML="";$("#mapLegend").innerHTML="";return}
   const rot=(+$("#optRot").value||0)*Math.PI/180,cr=Math.cos(rot),sr=Math.sin(rot);
-  const pts=ids.map(i=>{const s=byId(i)||{x:0,y:0};return[s.x*cr-s.y*sr,s.x*sr+s.y*cr]});
-  const f=interpolator(pts,vals,"tps");let[lo,hi]=mapScale(vals);if(hi-lo<1e-6){hi=lo+.01}
+  const pz=positioned(current,ids,vals),missing=ids.length-pz.P.length;vals=pz.V;
+  const pts=pz.P.map(p=>[p[0]*cr-p[1]*sr,p[0]*sr+p[1]*cr]);
+  const stAll=rowStats(allVals);
+  $("#mapStats").innerHTML=[["Mean",stAll.mean],["3-sigma",stAll.three],["Range",stAll.range],["Max",stAll.max],["Min",stAll.min]].map(a=>`<b>${a[0]}</b><span>: ${a[1].toFixed(2)}</span>`).join("")+`<b>Sensors</b><span>: ${allVals.length}</span>`;
+  if(pts.length<3){g.fillStyle=css("--warn");g.font="600 13px "+css("--sans");g.fillText("Sensor positions unknown for this file.",12,24);g.fillStyle=css("--muted");g.font="13px "+css("--sans");g.fillText("Statistics below use all sensors.",12,44);g.fillText("File → Load sensor positions… to draw the map.",12,64);$("#mapLegend").innerHTML="";return}
+  const f=interpolator(pts,vals,"tps");let[lo,hi]=mapScale(allVals);if(hi-lo<1e-6){hi=lo+.01}
   const discrete=$("#optContour").checked,step=(hi-lo)/12;
   // legend: 13 levels, hottest first
   $("#mapLegend").innerHTML=[...Array(13)].map((_,k)=>{const v=hi-k*step;return`<div><i style="background:${rgb(BINS[12-k])}"></i>${v.toFixed(2)}</div>`}).join("");
-  const st=rowStats(vals);
-  $("#mapStats").innerHTML=[["Mean",st.mean],["3-sigma",st.three],["Range",st.range],["Max",st.max],["Min",st.min]].map(a=>`<b>${a[0]}</b><span>: ${a[1].toFixed(2)}</span>`).join("");
+
   const notchAng=-Math.PI/2+($("#optNotch").checked?0:rot);
   if($("#mapMode").value==="3d")return draw3D(g,w,h,f,lo,hi,pts,vals,discrete);
+  if(missing>0)setTimeout(()=>{g.fillStyle=css("--warn");g.font="600 12px "+css("--sans");g.textAlign="left";g.textBaseline="top";g.fillText(`${missing} sensors have no position (not drawn, still in statistics)`,6,4)},0);
   const S=Math.min(w,h)/2-8,cx=w/2,cy=h/2,N=170,img=new ImageData(N,N),grid=new Float32Array(N*N).fill(NaN);
   for(let j=0;j<N;j++)for(let i=0;i<N;i++){const x=((i+.5)/N*2-1)*R,y=(1-(j+.5)/N*2)*R;if(x*x+y*y>R*R*1.02)continue;
     const z=f(x,y);grid[j*N+i]=z;const col=binColor((z-lo)/(hi-lo),discrete),p=(j*N+i)*4;img.data[p]=col[0];img.data[p+1]=col[1];img.data[p+2]=col[2];img.data[p+3]=255}
@@ -1111,6 +1205,8 @@ $$("[data-menu]").forEach(b=>b.addEventListener("click",e=>{e.stopPropagation();
 document.addEventListener("click",e=>{if(!e.target.closest(".menubar"))closeMenus()});
 $("#menubar").addEventListener("click",e=>{const a=e.target.closest("[data-act]");if(!a)return;closeMenus();({
   open:()=>$("#csvFile").click(),
+  pos:()=>$("#posFile").click(),
+  gowv:()=>show("wv"),
   export:exportCSV,
   example:()=>{setCurrent(exampleRun(),"Example run (105139SE · PM3)");renderViewer()},
   loadtpl:()=>{dv.tpl={name:"PM3 92 °C manual qual",rows:[{stat:"Mean",min:92.0,max:93.0},{stat:"Range",min:null,max:1.5},{stat:"3-Sigma",min:null,max:1.2}]};log("Template loaded: PM3 92 °C manual qual","g");renderDVStats()},
@@ -1132,20 +1228,35 @@ function exportCSV(){const m=current.meta||{},name=`C:\\LAM SensArray\\${m.hwid|
   dialog("Export to .csv",`<p style="margin:0">Save as <code>${esc(name)}</code></p><p class="hint" style="margin:0">This demo page can't write files. Copy the text below and paste it into a new .csv file.</p><textarea id="csvOut" readonly>${esc(txt)}</textarea>`,
     [{label:"Close"},{label:"Copy CSV",primary:true,fn:()=>{const ta=$("#csvOut");if(navigator.clipboard)navigator.clipboard.writeText(txt).then(()=>log("CSV copied to clipboard.","g"),()=>{ta.focus();ta.select()});else{ta.focus();ta.select()}return false}}])}
 $("#csvFile").addEventListener("change",e=>{const file=e.target.files[0];if(!file)return;const fr=new FileReader();fr.onload=()=>{try{loadCSV(fr.result,file.name)}catch(err){log("Could not read "+file.name+": "+err.message,"e")}};fr.readAsText(file);e.target.value=""});
-function loadCSV(text,name){const lines=text.split(/\r?\n/).filter(l=>l.trim()),tags={};let header=null;const rows=[];
+function loadCSV(text,name){const lines=text.split(/\r?\n/).filter(l=>l.trim()),tags={};const rows=[];let xs=null,ys=null;
   for(const l of lines){if(l.startsWith("#")){const[k,...v]=l.slice(1).split("=");if(v.length)tags[k.trim()]=v.join("=").trim();continue}
-    const cells=l.split(/[,;\t]/).map(c=>c.trim());const nums=cells.map(Number);
-    if(nums.length>2&&nums.every(n=>isFinite(n)))rows.push(nums);else if(!rows.length)header=cells}
-  if(rows.length<2)throw new Error("no numeric rows found");
+    const cells=l.split(/[,;\t]/).map(c=>c.trim());const lab=cells[0].toLowerCase().replace(/[^a-z]/g,"");const rest=cells.slice(1).map(Number);
+    if((lab==="x"||lab==="xmm"||lab==="xpos")&&rest.every(isFinite)){xs=rest;continue}
+    if((lab==="y"||lab==="ymm"||lab==="ypos")&&rest.every(isFinite)){ys=rest;continue}
+    const nums=cells.map(Number);if(nums.length>2&&nums.every(n=>isFinite(n)))rows.push(nums)}
+  if(rows.length<1)throw new Error("no numeric rows found");
   const k=Math.min(...rows.map(r=>r.length))-1;
-  const run={t:new Float64Array(rows.map(r=>r[0])),T:rows.map(r=>r.slice(1,k+1)),ids:[...Array(k)].map((_,i)=>i+1),tags:{tool:tags.tool||"",chamber:tags.chamber||"",recipe:tags.recipe||name},
+  const run={t:new Float64Array(rows.map(r=>r[0])),T:rows.map(r=>r.slice(1,k+1)),ids:[...Array(k)].map((_,i)=>i+1),fromFile:true,tags:{tool:tags.tool||"",chamber:tags.chamber||"",recipe:tags.recipe||name},
     meta:{hwid:tags["Wafer HWID"]||name.replace(/\.[^.]+$/,""),fabId:tags["Fab Wafer ID"]||"",date:tags["Mission date"]||"",recipe:tags.Recipe||"Loaded from "+name}};
+  if(run.t.length===1){run.t=new Float64Array([0,1]);run.T=[run.T[0],run.T[0].slice()]}
+  if(xs&&ys&&xs.length>=k&&ys.length>=k){run.pos=normPos(Object.fromEntries(run.ids.map((id,j)=>[id,[xs[j],ys[j]]])));posLib[k]=run.pos;log(`Sensor positions read from ${name}.`,"g")}
+  else if(posLib[k]){run.pos=posLib[k];log(`Using the ${k}-sensor positions loaded earlier.`,"g")}
   setCurrent(run,"File: "+name);
-  log(`Loaded ${name}: ${rows.length} samples × ${k} sensors.`,"g");
-  if(k>sensors.length)log(`File has ${k} sensors but only ${sensors.length} positions are known. Map uses the first ${sensors.length}.`,"w");
-  else log("Sensor positions are assumed in column order. Send your wafer's sensor map for exact positions.","w");
-  if(k>sensors.length)run.ids.forEach(i=>{if(i>sensors.length)dv.excluded.add(i)});
+  log(`Loaded ${name}: ${run.t.length} samples × ${k} sensors. Statistics use all ${k} sensors.`,"g");
+  if(!run.pos)log("No sensor positions in this file. Map is hidden until you use File → Load sensor positions….","w");
   renderViewer()}
+function normPos(map){const v=Object.values(map).flat(),mx=Math.max(...v.map(Math.abs)),mn=Math.min(...v);
+  if(mx<=1.01){for(const k in map)map[k]=[map[k][0]*R,map[k][1]*R];log("Positions looked normalized (−1…1); scaled to mm.","w")}
+  else if(mn>=0&&mx<=300.5&&mx>160){for(const k in map)map[k]=[map[k][0]-150,map[k][1]-150];log("Positions looked like 0…300 mm with a 150 mm offset; centered them.","w")}
+  return map}
+function loadPositions(text,name){const map={};let seq=0;
+  for(const l of text.split(/\r?\n/)){const c=l.split(/[,;\t ]+/).map(x=>x.trim()).filter(Boolean),n=c.map(Number);if(!c.length||!n.every(isFinite))continue;
+    if(n.length>=3)map[Math.round(n[0])]=[n[1],n[2]];else if(n.length===2)map[++seq]=[n[0],n[1]]}
+  const cnt=Object.keys(map).length;if(cnt<3){log(`${name}: no positions found. Use rows of "site, x, y" in mm.`,"e");return}
+  normPos(map);current.pos=map;posLib[current.ids.length]=map;
+  const miss=current.ids.filter(i=>!map[i]).length;
+  log(`Loaded ${cnt} sensor positions from ${name}${miss?`; ${miss} sensors still without a position`:""}.`,miss?"w":"g");renderViewer()}
+$("#posFile").addEventListener("change",e=>{const file=e.target.files[0];if(!file)return;const fr=new FileReader();fr.onload=()=>loadPositions(fr.result,file.name);fr.readAsText(file);e.target.value=""});
 
 /* ================= ANALYSIS VIEWS ================= */
 function tilesHTML(s,keys){return keys.map(k=>{const m=mInfo(k);return`<div class="tile"><span>${m[1]}</span><b>${fmt(s[k],m[3])} <small style="font-size:12px;color:var(--muted)">${m[2]}</small></b></div>`}).join("")}
@@ -1199,7 +1310,9 @@ function renderChamber(){fillRunSelect($("#cmRef"),"PM1");const R_=allRuns(),ref
 ["#cmRef","#cmRms","#cmSens"].forEach(s=>$(s).addEventListener("input",renderChamber));
 
 function renderInterp(){fillRunSelect($("#ipRun"),currentName);const run=allRuns()[$("#ipRun").value],s=summarize(run);
-  const vals=s.ssT||run.T[run.T.length-1],pts=run.ids.map(i=>{const q=byId(i)||{x:0,y:0};return[q.x,q.y]}),f=interpolator(pts,vals,$("#ipMethod").value);
+  const pz=positioned(run,run.ids,s.ssT||run.T[run.T.length-1]),vals=pz.V,pts=pz.P;
+  if(pts.length<3){const c=$("#cvIp");if(c.clientWidth){const{g}=setup(c);g.fillStyle=css("--warn");g.font="600 13px "+css("--sans");g.fillText("Sensor positions unknown. Data Viewer → File → Load sensor positions…",12,24)}return}
+  const f=interpolator(pts,vals,$("#ipMethod").value);
   const c=$("#cvIp");if(!c.clientWidth)return;const{g,w,h}=setup(c),sz=Math.min(w,h)/2-10,cx=w/2,cy=h/2,step=3,grid=[];
   let lo=Infinity,hi=-Infinity;for(let y=-R;y<=R;y+=step)for(let x=-R;x<=R;x+=step){if(x*x+y*y>R*R)continue;const v=f(x,y);grid.push([x,y,v]);lo=Math.min(lo,v);hi=Math.max(hi,v)}
   const k=sz/R,px=step*k+1;for(const[x,y,v]of grid){g.fillStyle=heat((v-lo)/(hi-lo||1));g.fillRect(cx+x*k-px/2,cy-y*k-px/2,px,px)}
@@ -1212,6 +1325,94 @@ function renderInterp(){fillRunSelect($("#ipRun"),currentName);const run=allRuns
   const nb=10,sums=new Float64Array(nb),cnt=new Float64Array(nb);for(const[x,y,v]of grid){const b=Math.min(nb-1,Math.floor(Math.hypot(x,y)/R*nb));sums[b]+=v;cnt[b]++}
   chart($("#cvRadial"),[{x:[...Array(nb)].map((_,i)=>(i+.5)*R/nb),y:[...sums].map((v,i)=>v/cnt[i]),color:css("--cfg"),width:2,points:true,r:3}],{xlabel:"radius (mm)",ylabel:"°C"})}
 ["#ipRun","#ipMethod","#ipDots"].forEach(s=>$(s).addEventListener("change",renderInterp));
+
+/* ================= WAFER VIEWER (compare) ================= */
+const WVC=[[160,40,240],[30,60,255],[20,200,240],[40,205,80],[240,226,40],[246,140,30],[214,36,30]];
+function wvColor(f){f=Math.max(0,Math.min(1,f));const p=f*(WVC.length-1),i=Math.min(WVC.length-2,Math.floor(p)),u=p-i;return WVC[i].map((c,k)=>c+u*(WVC[i+1][k]-c))}
+function siteValues(run,mode){
+  if(mode==="dv"&&run===current){const d=dvValues();return{ids:d.ids,vals:d.vals}}
+  if(mode==="ss"){const s=summarize(run);if(s.ssT)return{ids:run.ids.slice(),vals:s.ssT.slice()}}
+  return{ids:run.ids.slice(),vals:run.ids.map((_,j)=>{let a=0;for(const r of run.T)a+=r[j];return a/run.T.length})}}
+function statsHTML(st,n){if(!st)return'<span class="hint">no sites</span>';const pc=v=>` (${(100*v/Math.abs(st.mean)).toFixed(1)} %)`;
+  return`Mean : ${st.mean.toFixed(2)} °C<br>3-sigma : ${st.three.toFixed(2)} °C${pc(st.three)}<br>Range : ${st.range.toFixed(2)} °C${pc(st.range)}<br>Maximum : ${st.max.toFixed(2)} °C<br>Minimum : ${st.min.toFixed(2)} °C`+(n!=null?`<br>Sites : ${n}`:"")}
+function renderWV(){
+  const R_=allRuns(),names=Object.keys(R_);
+  fillRunSelect($("#wvA"),currentName);const pb=$("#wvB").value;$("#wvB").innerHTML='<option value="">(none)</option>'+names.map(n=>`<option>${esc(n)}</option>`).join("");if(names.includes(pb))$("#wvB").value=pb;
+  const A=R_[$("#wvA").value],B=$("#wvB").value?R_[$("#wvB").value]:null,mode=$("#wvMode").value,math=$("#wvMath").value;
+  let{ids,vals}=siteValues(A,mode),posRun=A;
+  if(math!=="A"&&!B){$("#wvWarn").hidden=false;$("#wvWarn").textContent="Pick a Wafer B to use this display.";}
+  else{$("#wvWarn").hidden=true;
+    if(B&&math!=="A"){const b=siteValues(B,mode),mb=new Map(b.ids.map((id,k)=>[id,b.vals[k]]));
+      if(math==="B"){ids=b.ids;vals=b.vals;posRun=B}
+      else{const I=[],V=[];ids.forEach((id,k)=>{if(!mb.has(id))return;const x=vals[k],y=mb.get(id);I.push(id);V.push(math==="A-B"?x-y:math==="B-A"?y-x:(x+y)/2)});ids=I;vals=V}}}
+  $("#wvSites").textContent=ids.length;
+  const siteSt=vals.length?rowStats(vals):null;
+  const pz=positioned(posRun,ids,vals),P=pz.P,V=pz.V,edge=Math.max(0,+$("#wvEdge").value||0),Re=R-edge;
+  const f=P.length>=3?interpolator(P,V,"tps"):null;
+  const N=110,grid=[];if(f)for(let j=0;j<N;j++)for(let i=0;i<N;i++){const x=((i+.5)/N*2-1)*R,y=(1-(j+.5)/N*2)*R;if(x*x+y*y<=Re*Re)grid.push([x,y,f(x,y)])}
+  const mapSt=grid.length?rowStats(grid.map(q=>q[2])):null;
+  $("#wvStats").innerHTML=statsHTML($("#wvSrc").value==="map"?mapSt:siteSt,$("#wvSrc").value==="map"?null:ids.length);
+  if(!siteSt)return;
+  if(!f){const w=$("#wvWarn");w.hidden=false;w.textContent=`Sensor positions unknown for ${ids.length-P.length} of ${ids.length} sites. Statistics use every site; the map needs positions (Data Viewer → File → Load sensor positions…).`}
+  else if(P.length<ids.length){const w=$("#wvWarn");w.hidden=false;w.textContent=`${ids.length-P.length} sites have no position: left off the map, still in the statistics.`}
+  let lo,hi;if($("#wvScale").value==="user"){lo=+$("#wvLo").value;hi=+$("#wvUp").value}else{lo=siteSt.min;hi=siteSt.max;$("#wvLo").value=lo.toFixed(2);$("#wvUp").value=hi.toFixed(2)}
+  if(!(hi>lo))hi=lo+.01;
+  // center of mass (weights = value - min)
+  let sw=0,sx=0,sy=0;P.forEach((p,i)=>{const wgt=V[i]-siteSt.min;sw+=wgt;sx+=wgt*p[0];sy+=wgt*p[1]});const com=sw>0?[sx/sw,sy/sw]:[0,0];
+  const comR=Math.hypot(com[0],com[1]),comA=(Math.atan2(com[1],com[0])*180/Math.PI+360)%360;
+  $("#wvCom").innerHTML=P.length?`Radius : ${comR.toFixed(1)} mm<br>Angle : ${comA.toFixed(1)} °`:'<span class="hint">needs positions</span>';
+  // spatial regions
+  const R0=+$("#wvR0").value||0,inn=[],out=[];P.forEach((p,i)=>(Math.hypot(p[0],p[1])<=R0?inn:out).push(V[i]));
+  $("#wvIn").innerHTML=P.length?statsHTML(inn.length?rowStats(inn):null,inn.length):'<span class="hint">needs positions</span>';
+  $("#wvOut").innerHTML=P.length?statsHTML(out.length?rowStats(out):null,out.length):'<span class="hint">needs positions</span>';
+  // info
+  const m=A.meta||{},t=A.tags||{};
+  $("#wvInfo").innerHTML=`Wafer ID: ${esc(m.hwid||"—")}<br>Lot ID: ${esc(t.lot||"—")}<br>Recipe: ${esc(t.recipe||"—")}<br>Date: ${esc(m.date||"—")}<br>Tool: ${esc((t.tool||"—")+" "+(t.chamber||""))}`;
+  // ---- main map ----
+  const c=$("#cvWv");if(c.clientWidth){const{g,w,h}=setup(c),cbW=70,S=Math.min(w-cbW-20,h-34)/2,cx=10+S,cy=8+S;
+    if(f){const M=180,img=new ImageData(M,M);
+      for(let j=0;j<M;j++)for(let i=0;i<M;i++){const x=((i+.5)/M*2-1)*R,y=(1-(j+.5)/M*2)*R,q=(j*M+i)*4;if(x*x+y*y>R*R)continue;
+        if(x*x+y*y>Re*Re){const gc=[150,150,150];img.data[q]=gc[0];img.data[q+1]=gc[1];img.data[q+2]=gc[2];img.data[q+3]=255;continue}
+        const col=wvColor((f(x,y)-lo)/(hi-lo));img.data[q]=col[0];img.data[q+1]=col[1];img.data[q+2]=col[2];img.data[q+3]=255}
+      const off=document.createElement("canvas");off.width=M;off.height=M;off.getContext("2d").putImageData(img,0,0);
+      g.save();g.beginPath();g.arc(cx,cy,S,0,7);g.clip();g.imageSmoothingEnabled=true;g.drawImage(off,cx-S,cy-S,2*S,2*S);g.restore()}
+    else{g.fillStyle=css("--panel2");g.beginPath();g.arc(cx,cy,S,0,7);g.fill()}
+    g.strokeStyle="#000";g.lineWidth=1.5;g.beginPath();g.arc(cx,cy,S,0,7);g.stroke();
+    g.fillStyle=css("--panel");g.beginPath();g.arc(cx,cy+S,5,Math.PI,0);g.fill();
+    g.fillStyle=css("--muted");g.font="11px "+css("--mono");g.textAlign="center";g.textBaseline="top";
+    for(let v=-120;v<=120;v+=40)g.fillText(v.toFixed(1),cx+v/R*S,cy+S+8);
+    if($("#wvShowSites").checked||$("#wvShowVals").checked){g.font="600 10.5px "+css("--mono");g.textBaseline="bottom";
+      P.forEach((p,i)=>{const x=cx+p[0]/R*S,y=cy-p[1]/R*S;if($("#wvShowSites").checked){g.fillStyle="#000";g.beginPath();g.arc(x,y,2.6,0,7);g.fill()}
+        if($("#wvShowVals").checked){g.fillStyle="#000";g.fillText(V[i].toFixed(2),x,y-3)}})}
+    if($("#wvShowCom").checked&&P.length){g.fillStyle="#1a7f3c";g.strokeStyle="#fff";g.beginPath();g.arc(cx+com[0]/R*S,cy-com[1]/R*S,6,0,7);g.fill();g.stroke()}
+    // colour bar
+    const bx=w-cbW+6,by=cy-S,bh=2*S;for(let k=0;k<bh;k++){g.fillStyle=rgb(wvColor(1-k/bh));g.fillRect(bx,by+k,16,1.5)}
+    g.strokeStyle=css("--ink");g.strokeRect(bx,by,16,bh);g.fillStyle=css("--ink");g.textAlign="left";g.textBaseline="middle";g.font="11px "+css("--mono");
+    ticks(lo,hi,6).forEach(v=>{const y=by+(1-(v-lo)/(hi-lo))*bh;g.fillRect(bx+16,y,4,1);g.fillText(v.toFixed(2),bx+22,y)});
+    g.textBaseline="bottom";g.fillText(hi.toFixed(2)+" °C",bx-6,by-2);g.textBaseline="top";g.fillText(lo.toFixed(2)+" °C",bx-6,by+bh+2)}
+  // ---- cross-section ----
+  const ang=(+$("#wvAng").value||0)*Math.PI/180,xsX=[],xsY=[];if(f)for(let s2=-Re;s2<=Re+1e-9;s2+=2){xsX.push(s2);xsY.push(f(s2*Math.cos(ang),s2*Math.sin(ang)))}
+  $("#wvXs").innerHTML=xsY.length?statsHTML(rowStats(xsY)):'<span class="hint">needs positions</span>';
+  const mc=$("#cvWvMini");if(mc.clientWidth){const{g,w,h}=setup(mc),S=Math.min(w,h)/2-4,cx=w/2,cy=h/2;g.strokeStyle=css("--ink");g.beginPath();g.arc(cx,cy,S,0,7);g.stroke();
+    g.fillStyle=css("--bad");P.forEach(p=>{g.fillRect(cx+p[0]/R*S-1.2,cy-p[1]/R*S-1.2,2.4,2.4)});
+    g.strokeStyle=css("--ink");g.beginPath();g.moveTo(cx-Math.cos(ang)*S,cy+Math.sin(ang)*S);g.lineTo(cx+Math.cos(ang)*S,cy-Math.sin(ang)*S);g.stroke()}
+  if(xsY.length)chart($("#cvWvX"),[{x:xsX,y:xsY,color:css("--ink"),width:1,points:true,r:2.4,pointColor:i=>rgb(wvColor((xsY[i]-lo)/(hi-lo)))}],{xlabel:"position along section (mm)",ylabel:"°C"});
+  else setup($("#cvWvX"));
+  // ---- histogram ----
+  const hv=$("#wvHsrc").value==="map"&&grid.length?grid.map(q=>q[2]):vals,hs=rowStats(hv),bw=Math.max(1e-6,(+$("#wvRes").value)*hs.sigma);
+  const hc=$("#cvWvH");if(hc.clientWidth&&hs.sigma>0){const{g,w,h}=setup(hc),L=46,Rr=10,T=8,Bm=24,nb=Math.max(1,Math.ceil((hs.max-hs.min)/bw)),cnt=new Array(nb).fill(0);
+    hv.forEach(v=>cnt[Math.min(nb-1,Math.floor((v-hs.min)/bw))]++);const cmax=Math.max(...cnt);
+    const pdf=x=>hv.length*bw*Math.exp(-((x-hs.mean)**2)/(2*hs.sigma**2))/(hs.sigma*Math.sqrt(2*Math.PI)),ymax=Math.max(cmax,pdf(hs.mean))*1.08;
+    const X=v=>L+(v-hs.min)/(nb*bw)*(w-L-Rr),Y=v=>T+(1-v/ymax)*(h-T-Bm);
+    g.fillStyle=css("--muted");g.font="10.5px "+css("--mono");g.strokeStyle=css("--grid");
+    ticks(0,ymax,4).forEach(v=>{const y=Y(v);g.beginPath();g.moveTo(L,y);g.lineTo(w-Rr,y);g.stroke();g.textAlign="right";g.textBaseline="middle";g.fillText(v,L-4,y)});
+    cnt.forEach((n2,k)=>{const x0=X(hs.min+k*bw),x1=X(hs.min+(k+1)*bw);g.fillStyle=rgb(wvColor((hs.min+(k+.5)*bw-lo)/(hi-lo)));g.fillRect(x0+1,Y(n2),x1-x0-2,Y(0)-Y(n2))});
+    g.strokeStyle=css("--ink");g.lineWidth=1.2;g.beginPath();for(let k=0;k<=80;k++){const x=hs.min+k/80*nb*bw,px=X(x),py=Y(pdf(x));k?g.lineTo(px,py):g.moveTo(px,py)}g.stroke();
+    g.fillStyle=css("--muted");g.textAlign="center";g.textBaseline="top";[hs.min,hs.mean,hs.max].forEach(v=>g.fillText(v.toFixed(2),X(v),h-Bm+6))}
+}
+["#wvA","#wvB","#wvMath","#wvMode","#wvEdge","#wvSrc","#wvScale","#wvUp","#wvLo","#wvShowSites","#wvShowVals","#wvShowCom","#wvAng","#wvHsrc","#wvRes","#wvR0"].forEach(x=>$(x).addEventListener("input",renderWV));
+$("#wvB").addEventListener("change",()=>{if($("#wvB").value&&$("#wvMath").value==="A")$("#wvMath").value="A-B";renderWV()});
+$("#wvDdof").addEventListener("change",()=>{DDOF=+$("#wvDdof").value;[current,...Object.values(runs),...baseline,...history].forEach(r=>delete r._sum);log(`Sigma now uses ${DDOF?"n − 1 (sample)":"n (population)"}.`);renderWV()});
 
 /* ================= CONFIGURATION ================= */
 const flow=["FOUP load port · read wafer ID","Transfer to PM3","PM3 · chuck 92 °C · 120 s","Return to FOUP · download mission","Tag data · export .csv to C:\\LAM SensArray"];
