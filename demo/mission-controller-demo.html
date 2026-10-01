@@ -419,6 +419,7 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
                 <span><input type="checkbox" id="optOverlay" checked> <label for="optOverlay">Data Overlay</label></span>
                 <span><input type="number" id="optRot" value="0" step="15"> <label for="optRot">2D map rotation</label></span>
                 <span><input type="checkbox" id="optNotch" checked> <label for="optNotch">Fixed Notch</label></span>
+                <span><label for="dvSize">Wafer size</label> <select id="dvSize" class="sizeSel"><option value="150">150 mm</option><option value="200">200 mm</option><option value="300" selected>300 mm</option><option value="450">450 mm</option><option value="custom">Custom…</option></select> <input type="number" class="sizeCustom" id="dvSizeC" value="300" min="25" max="600" step="1" hidden> mm</span>
               </div>
             </div>
           </div>
@@ -585,7 +586,7 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
           <label for="wvMode">Site values</label><select id="wvMode"><option value="avg">Whole-run average</option><option value="ss">Steady-state average</option><option value="dv">Data Viewer start/end point</option></select>
           <span>Units °C</span>
           <label for="wvEdge">Edge</label><input type="number" id="wvEdge" value="3" min="0" step="1"><span>mm</span>
-          <span>Sites <b id="wvSites">–</b></span><span>Size 300 mm</span>
+          <span>Sites <b id="wvSites">–</b></span><label for="wvSize">Size</label><select id="wvSize" class="sizeSel"><option value="150">150 mm</option><option value="200">200 mm</option><option value="300" selected>300 mm</option><option value="450">450 mm</option><option value="custom">Custom…</option></select><input type="number" class="sizeCustom" id="wvSizeC" value="300" min="25" max="600" step="1" hidden><span>mm</span>
           <label for="wvDdof">Sigma</label><select id="wvDdof"><option value="1">sample (n − 1)</option><option value="0">population (n)</option></select>
         </div>
         <div class="wv-grid">
@@ -632,7 +633,7 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
               <option value="4q">4 zone · quadrants</option>
             </select>
             <div class="wv-opt" style="margin-top:8px">
-              <label for="wvR0" data-z="2">Radius</label><span data-z="2"><input type="number" id="wvR0" value="75" min="0" max="150" step="5"> mm</span>
+              <label for="wvR0" data-z="2">Radius</label><span data-z="2"><input type="number" id="wvR0" value="75" min="0" max="300" step="5"> mm</span>
               <label for="wvRings" data-z="4r">Ring edges</label><span data-z="4r"><input type="text" id="wvRings" value="70, 90, 120" style="width:110px"> mm</span>
               <label for="wvQrot" data-z="4q">Rotation</label><span data-z="4q"><input type="number" id="wvQrot" value="0" step="15"> °</span>
             </div>
@@ -712,15 +713,16 @@ function rng(seed){let a=seed>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^
 function gauss(r){let u=0;while(!u)u=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*r())}
 
 /* ---------- sensor layout: traced from the operator's Mission Controller screenshot (approximate) ---------- */
-const R=150;
+const R300=150;   // layout reference: sensor positions traced on a 300 mm wafer
+let R=150;        // current wafer radius in mm (300 mm wafer by default; adjustable)
 const PX=[[1275,755],[1383,752],[1483,787],[1180,802],[1372,820],[1562,858],[1218,857],[1300,855],[1430,874],[1362,884],[1107,880],[1505,898],[1258,908],[1193,930],[1452,937],[1605,955],[1298,963],[1397,977],[1507,977],[1072,977],[1139,988],[1204,997],[1344,1001],[1322,1015],[1357,1020],[1336,1033],[1475,1038],[1540,1046],[1605,1056],[1175,1057],[1283,1057],[1381,1073],[1077,1082],[1230,1099],[1485,1104],[1419,1126],[1177,1137],[1318,1152],[1251,1162],[1570,1155],[1460,1177],[1381,1180],[1122,1176],[1308,1216],[1497,1229],[1200,1248],[1403,1274],[1298,1280]];
-const sensors=PX.map((p,i)=>({id:i+1,x:(p[0]-1340)/275*R,y:-(p[1]-1016)/275*R,state:"en"}));
+const sensors=PX.map((p,i)=>({id:i+1,x:(p[0]-1340)/275*R300,y:-(p[1]-1016)/275*R300,state:"en"}));
 const byId=id=>sensors[id-1];
 const enabledIds=()=>sensors.filter(s=>s.state==="en").map(s=>s.id);
 /* Sensor positions per run. Simulated runs use the Mission Controller layout.
    Files use positions from the file or from File -> Load sensor positions; never guessed. */
 const posLib={}; // sensor count -> {id:[x,y]}
-function posOf(run,id){if(run.pos)return run.pos[id]||null;if(run.fromFile)return null;const s=byId(id);return s?[s.x,s.y]:null}
+function posOf(run,id){if(run.pos)return run.pos[id]||null;if(run.fromFile)return null;const s=byId(id);const k=R/R300;return s?[k*s.x,k*s.y]:null}
 function positioned(run,ids,vals){const P=[],V=[],I=[];ids.forEach((id,k)=>{const p=posOf(run,id);if(p){P.push(p);V.push(vals[k]);I.push(id)}});return{P,V,I}}
 
 /* ---------- process simulation ----------
@@ -1256,7 +1258,7 @@ function loadCSV(text,name){const lines=text.split(/\r?\n/).filter(l=>l.trim()),
   renderViewer()}
 function normPos(map){const v=Object.values(map).flat(),mx=Math.max(...v.map(Math.abs)),mn=Math.min(...v);
   if(mx<=1.01){for(const k in map)map[k]=[map[k][0]*R,map[k][1]*R];log("Positions looked normalized (−1…1); scaled to mm.","w")}
-  else if(mn>=0&&mx<=300.5&&mx>160){for(const k in map)map[k]=[map[k][0]-150,map[k][1]-150];log("Positions looked like 0…300 mm with a 150 mm offset; centered them.","w")}
+  else if(mn>=0&&mx<=2*R+.5&&mx>R+10){for(const k in map)map[k]=[map[k][0]-R,map[k][1]-R];log(`Positions looked like 0…${2*R} mm with a ${R} mm offset; centered them`,"w")}
   return map}
 function loadPositions(text,name){const map={};let seq=0;
   for(const l of text.split(/\r?\n/)){const c=l.split(/[,;\t ]+/).map(x=>x.trim()).filter(Boolean),n=c.map(Number);if(!c.length||!n.every(isFinite))continue;
@@ -1377,7 +1379,7 @@ function renderWV(){
   const zoneDef=zm==="2"?{n:2,names:[`Center (r ≤ ${R0})`,`Edge (r > ${R0})`],of:(x,y)=>Math.hypot(x,y)<=R0?0:1}
     :zm==="4r"?{n:rings.length+1,names:[0,...rings].map((r0,k)=>{const lab=rings.length===3?["Inner","MI","MO","Outer"][k]:`Ring ${k+1}`;return k<rings.length?`${lab} (${r0}–${rings[k]} mm)`:`${lab} (> ${r0} mm)`}),of:(x,y)=>{const r=Math.hypot(x,y);let k=0;while(k<rings.length&&r>rings[k])k++;return k}}
     :{n:4,names:["Q1","Q2","Q3","Q4"].map((q,k)=>`${q} (${(qrot+90*k)%360}–${(qrot+90*k+90)%360||360}°)`),of:(x,y)=>{const ang=((Math.atan2(y,x)*180/Math.PI-qrot)%360+360)%360;return Math.min(3,Math.floor(ang/90))}};
-  $("#wvZoneHint").textContent=zm==="2"?"Same as Wafer Viewer's center-to-edge (black / white region) split.":zm==="4r"?"Inner 0–70, MI (middle-inner) 70–90, MO (middle-outer) 90–120, Outer > 120 mm. A site exactly on an edge belongs to the inner zone. Edit the edges if needed.":"Quadrants counter-clockwise from the +x axis (3 o'clock), notch at 6 o'clock.";
+  $("#wvZoneHint").textContent=zm==="2"?"Same as Wafer Viewer's center-to-edge (black / white region) split.":zm==="4r"?`Inner / MI (middle-inner) / MO (middle-outer) / Outer. Defaults 70, 90, 120 mm on a 300 mm wafer; they scale when you change the wafer size. A site exactly on an edge belongs to the inner zone.`:"Quadrants counter-clockwise from the +x axis (3 o'clock), notch at 6 o'clock.";
   const zv=[...Array(zoneDef.n)].map(()=>[]);P.forEach((p,i)=>zv[zoneDef.of(p[0],p[1])].push(V[i]));
   const ZC=[[37,99,235],[219,39,119],[22,163,74],[234,88,12],[124,58,237]];
   if(P.length){const zs=zv.map(v=>v.length?rowStats(v):null),means=zs.filter(Boolean).map(z=>z.mean),spread=means.length>1?Math.max(...means)-Math.min(...means):null;
@@ -1392,7 +1394,7 @@ function renderWV(){
   else{$("#wvZoneTable").innerHTML='<tr><td class="hint">Zones need sensor positions (Data Viewer → File → Load sensor positions…).</td></tr>';setup($("#cvZone"))}
   // info
   const m=A.meta||{},t=A.tags||{};
-  $("#wvInfo").innerHTML=`Wafer ID: ${esc(m.hwid||"—")}<br>Lot ID: ${esc(t.lot||"—")}<br>Recipe: ${esc(t.recipe||"—")}<br>Date: ${esc(m.date||"—")}<br>Tool: ${esc((t.tool||"—")+" "+(t.chamber||""))}`;
+  $("#wvInfo").innerHTML=`Wafer ID: ${esc(m.hwid||"—")}<br>Lot ID: ${esc(t.lot||"—")}<br>Recipe: ${esc(t.recipe||"—")}<br>Date: ${esc(m.date||"—")}<br>Tool: ${esc((t.tool||"—")+" "+(t.chamber||""))}<br>Wafer diameter: ${2*R} mm`;
   // ---- main map ----
   const c=$("#cvWv");if(c.clientWidth){const{g,w,h}=setup(c),cbW=70,S=Math.min(w-cbW-20,h-34)/2,cx=10+S,cy=8+S;
     if(f){const M=180,img=new ImageData(M,M);
@@ -1405,7 +1407,7 @@ function renderWV(){
     g.strokeStyle="#000";g.lineWidth=1.5;g.beginPath();g.arc(cx,cy,S,0,7);g.stroke();
     g.fillStyle=css("--panel");g.beginPath();g.arc(cx,cy+S,5,Math.PI,0);g.fill();
     g.fillStyle=css("--muted");g.font="11px "+css("--mono");g.textAlign="center";g.textBaseline="top";
-    for(let v=-120;v<=120;v+=40)g.fillText(v.toFixed(1),cx+v/R*S,cy+S+8);
+    ticks(-R*.85,R*.85,6).forEach(v=>g.fillText(v.toFixed(1),cx+v/R*S,cy+S+8));
     if($("#wvShowSites").checked||$("#wvShowVals").checked){g.font="600 10.5px "+css("--mono");g.textBaseline="bottom";
       P.forEach((p,i)=>{const x=cx+p[0]/R*S,y=cy-p[1]/R*S;if($("#wvShowSites").checked){g.fillStyle="#000";g.beginPath();g.arc(x,y,2.6,0,7);g.fill()}
         if($("#wvShowVals").checked){g.fillStyle="#000";g.fillText(V[i].toFixed(2),x,y-3)}})}
@@ -1438,6 +1440,21 @@ function renderWV(){
 ["#wvA","#wvB","#wvMath","#wvMode","#wvEdge","#wvSrc","#wvScale","#wvUp","#wvLo","#wvShowSites","#wvShowVals","#wvShowCom","#wvAng","#wvHsrc","#wvRes","#wvR0","#wvZone","#wvRings","#wvQrot"].forEach(x=>$(x).addEventListener("input",renderWV));
 $("#wvB").addEventListener("change",()=>{if($("#wvB").value&&$("#wvMath").value==="A")$("#wvMath").value="A-B";renderWV()});
 $("#wvDdof").addEventListener("change",()=>{DDOF=+$("#wvDdof").value;[current,...Object.values(runs),...baseline,...history].forEach(r=>delete r._sum);log(`Sigma now uses ${DDOF?"n − 1 (sample)":"n (population)"}.`);renderWV()});
+
+/* ---- wafer size (default 300 mm, adjustable) ---- */
+const zoneRaw={rings:[70,90,120],r0:75}; // unrounded zone edges in mm, so resizing never drifts
+$("#wvRings").addEventListener("change",()=>{zoneRaw.rings=$("#wvRings").value.split(/[ ,;]+/).map(Number).filter(v=>v>0)});
+$("#wvR0").addEventListener("change",()=>{zoneRaw.r0=+$("#wvR0").value||0});
+function setWaferSize(mm,src){mm=Math.max(25,Math.min(600,+mm||300));const old=2*R;if(Math.abs(mm-old)<1e-9)return syncSize();
+  const k=mm/old;R=mm/2;
+  // scale zone boundaries with the wafer so Inner/MI/MO/Outer keep their meaning
+  zoneRaw.rings=zoneRaw.rings.map(v=>v*k);zoneRaw.r0*=k;
+  $("#wvRings").value=zoneRaw.rings.map(v=>+v.toFixed(1)).join(", ");$("#wvR0").value=+zoneRaw.r0.toFixed(1);
+  log(`Wafer size set to ${mm} mm. Zone edges scaled to ${$("#wvRings").value} mm.`);syncSize();render()}
+function syncSize(){const d=2*R,pre=["150","200","300","450"].includes(String(d));
+  $$(".sizeSel").forEach(sel=>{sel.value=pre?String(d):"custom"});$$(".sizeCustom").forEach(i=>{i.value=d;i.hidden=pre})}
+$$(".sizeSel").forEach(sel=>sel.addEventListener("change",()=>{if(sel.value==="custom"){$$(".sizeCustom").forEach(i=>i.hidden=false);sel.nextElementSibling.focus();return}setWaferSize(sel.value)}));
+$$(".sizeCustom").forEach(i=>i.addEventListener("change",()=>setWaferSize(i.value)));
 
 /* ================= CONFIGURATION ================= */
 const flow=["FOUP load port · read wafer ID","Transfer to PM3","PM3 · chuck 92 °C · 120 s","Return to FOUP · download mission","Tag data · export .csv to C:\\LAM SensArray"];
