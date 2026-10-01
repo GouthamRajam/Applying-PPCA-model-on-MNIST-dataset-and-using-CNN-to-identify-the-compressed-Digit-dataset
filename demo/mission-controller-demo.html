@@ -580,8 +580,10 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
       <div class="win">
         <div class="win-title"><i class="ico"></i>Wafer Viewer · site statistics and wafer comparison</div>
         <div class="wv-bar">
-          <label for="wvA"><b>Wafer A</b></label><select id="wvA"></select>
-          <label for="wvB"><b>Wafer B</b></label><select id="wvB"></select>
+          <label for="wvA"><b>Wafer A</b></label><select id="wvA"></select><button class="btn" data-wvopen="A">Open file…</button>
+          <label for="wvB"><b>Wafer B</b></label><select id="wvB"></select><button class="btn" data-wvopen="B">Open file…</button>
+          <button class="btn" id="wvPosBtn">Load sensor positions…</button>
+          <input type="file" id="wvFile" accept=".csv,.txt" hidden><input type="file" id="wvPosFile" accept=".csv,.txt" hidden>
           <label for="wvMath">Display</label><select id="wvMath"><option value="A">Wafer A</option><option value="B">Wafer B</option><option value="A-B">A − B</option><option value="B-A">B − A</option><option value="avg">(A + B) / 2</option></select>
           <label for="wvMode">Site values</label><select id="wvMode"><option value="avg">Whole-run average</option><option value="ss">Steady-state average</option><option value="dv">Data Viewer start/end point</option></select>
           <span>Units °C</span>
@@ -903,7 +905,14 @@ function buildTemplate(keys,k){template.limits=keys.map(key=>{const v=baseline.m
   return{metric:key,lsl:+(m-k*s).toFixed(3),usl:+(m+k*s).toFixed(3)}})}
 buildTemplate(["ss_mean","ss_range","ss_three_sigma"],3);
 template.limits.find(l=>l.metric==="ss_range").lsl=null;template.limits.find(l=>l.metric==="ss_three_sigma").lsl=null;
-function allRuns(){const o={};o[currentName]=current;for(const k in runs)o[k]=runs[k];return o}
+const files={}; // every CSV the user has loaded, by display name
+function allRuns(){const o={};if(!Object.values(files).includes(current))o[currentName]=current;Object.assign(o,files);for(const k in runs)o[k]=runs[k];return o}
+function fillWVSelect(sel,keep,withNone){const prev=sel.value,fileNames=Object.keys(files),demo=[];
+  if(!Object.values(files).includes(current))demo.push(currentName);for(const k in runs)demo.push(k);
+  sel.innerHTML=(withNone?'<option value="">(none)</option>':"")+
+    (fileNames.length?`<optgroup label="Your files">${fileNames.map(n=>`<option>${esc(n)}</option>`).join("")}</optgroup>`:'<optgroup label="Your files"><option disabled>No files yet: use Open file…</option></optgroup>')+
+    `<optgroup label="Simulated demo runs">${demo.map(n=>`<option>${esc(n)}</option>`).join("")}</optgroup>`;
+  const all=[...fileNames,...demo];sel.value=all.includes(prev)?prev:(keep&&all.includes(keep)?keep:(withNone?"":(fileNames[0]||demo[0])))}
 
 /* ---------- navigation ---------- */
 let view="mc";
@@ -1246,7 +1255,7 @@ function exportCSV(){const m=current.meta||{},name=`C:\\LAM SensArray\\${m.hwid|
 $("#csvFile").addEventListener("change",e=>{const file=e.target.files[0];if(!file)return;const fr=new FileReader();fr.onload=()=>{try{loadCSV(fr.result,file.name)}catch(err){log("Could not read "+file.name+": "+err.message,"e")}};fr.readAsText(file);e.target.value=""});
 /* ---- CSV import: parse, then let the user confirm which columns are sensors ---- */
 const NOT_SENSOR=/time|sec|sample|index|^no\.?$|^#|date|clock|step|batt|volt|ambient|board|ref|status|count/i;
-function loadCSV(text,name){const lines=text.split(/\r?\n/).filter(l=>l.trim()),tags={};const rows=[];let xs=null,ys=null,header=null;
+function loadCSV(text,name,target){const lines=text.split(/\r?\n/).filter(l=>l.trim()),tags={};const rows=[];let xs=null,ys=null,header=null;
   const num=c=>{c=(c||"").trim().replace(/^"|"$/g,"");return c===""?NaN:Number(c)}; // blank cell = missing, never 0
   for(const l of lines){if(l.startsWith("#")){const[k,...v]=l.slice(1).split("=");if(v.length)tags[k.trim()]=v.join("=").trim();continue}
     const cells=l.split(/[,;\t]/);const lab=cells[0].toLowerCase().replace(/[^a-z]/g,"");const rest=cells.slice(1).map(num);
@@ -1262,7 +1271,7 @@ function loadCSV(text,name){const lines=text.split(/\r?\n/).filter(l=>l.trim()),
     cols.push({j,nm,n:f.length,mn,mx,mean,why})}
   // time column: first column whose name says time, else the first column
   let tj=cols.findIndex(c=>/time|sec/i.test(c.nm));if(tj<0)tj=0;
-  showImport({name,rows,cols,tj,xs,ys,tags})}
+  showImport({name,rows,cols,tj,xs,ys,tags,target:target||"dv"})}
 function showImport(d){const sensorCols=d.cols.filter(c=>c.j!==d.tj);
   const body=`<p class="hint" style="margin:0">Tick the columns that are temperature sensors. Columns that are blank, always 0, count up, or are named like time/index/battery are unticked for you.</p>
     <div class="row" style="margin:0"><label for="impTime"><b>Time column</b></label><select id="impTime">${d.cols.map(c=>`<option value="${c.j}" ${c.j===d.tj?"selected":""}>${esc(c.nm)}</option>`).join("")}</select>
@@ -1286,12 +1295,13 @@ function buildRun(d,tj,picked){const{rows,name,tags,xs,ys}=d;
   if(xs&&ys){const pos={};picked.forEach((j,i)=>{const x=xs[j-1],y=ys[j-1];if(isFinite(x)&&isFinite(y))pos[ids[i]]=[x,y]});
     if(Object.keys(pos).length>=3){run.pos=normPos(pos);posLib[k]=run.pos;log(`Sensor positions read from ${name}.`,"g")}}
   if(!run.pos&&posLib[k]){run.pos=posLib[k];log(`Using the ${k}-sensor positions loaded earlier.`,"g")}
-  setCurrent(run,"File: "+name);
+  let key="File: "+name;for(let n=2;files[key];n++)key=`File: ${name} (${n})`;files[key]=run;
+  if(d.target==="dv")setCurrent(run,key);
   const skipped=d.cols.filter(c=>c.j!==tj&&!picked.includes(c.j));
   log(`Loaded ${name}: ${run.t.length} samples × ${k} sensors (time = "${d.cols[tj].nm}").`,"g");
   if(skipped.length)log(`Not used as sensors: ${skipped.map(c=>c.nm).join(", ")}.`,"w");
-  if(!run.pos)log("No sensor positions in this file. Map is hidden until you use File → Load sensor positions….","w");
-  renderViewer()}
+  if(!run.pos)log("No sensor positions in this file. The map needs them: use Load sensor positions….","w");
+  if(d.target==="A"||d.target==="B"){wvPending[d.target]=key;show("wv");log(`${key} set as Wafer ${d.target}.`,"g")}else renderViewer()}
 function normPos(map){const v=Object.values(map).flat(),mx=Math.max(...v.map(Math.abs)),mn=Math.min(...v);
   if(mx<=1.01){for(const k in map)map[k]=[map[k][0]*R,map[k][1]*R];log("Positions looked normalized (−1…1); scaled to mm.","w")}
   else if(mn>=0&&mx<=2*R+.5&&mx>R+10){for(const k in map)map[k]=[map[k][0]-R,map[k][1]-R];log(`Positions looked like 0…${2*R} mm with a ${R} mm offset; centered them`,"w")}
@@ -1380,13 +1390,16 @@ function siteValues(run,mode){
   if(mode==="dv"&&run===current){const d=dvValues();return{ids:d.ids,vals:d.vals}}
   if(mode==="ss"){const s=summarize(run);if(s.ssT)return{ids:run.ids.slice(),vals:s.ssT.slice()}}
   return{ids:run.ids.slice(),vals:run.ids.map((_,j)=>{let a=0;for(const r of run.T)a+=r[j];return a/run.T.length})}}
-function statsHTML(st,n){if(!st)return'<span class="hint">no sites</span>';const pc=v=>` (${(100*v/Math.abs(st.mean)).toFixed(1)} %)`;
+let wvIsDiff=false;
+function statsHTML(st,n){if(!st)return'<span class="hint">no sites</span>';const pc=v=>wvIsDiff?"":` (${(100*v/Math.abs(st.mean)).toFixed(1)} %)`;
   return`Mean : ${st.mean.toFixed(2)} °C<br>3-sigma : ${st.three.toFixed(2)} °C${pc(st.three)}<br>Range : ${st.range.toFixed(2)} °C${pc(st.range)}<br>Maximum : ${st.max.toFixed(2)} °C<br>Minimum : ${st.min.toFixed(2)} °C`+(n!=null?`<br>Sites : ${n}`:"")}
 function renderWV(){
   const R_=allRuns(),names=Object.keys(R_);
-  fillRunSelect($("#wvA"),currentName);const pb=$("#wvB").value;$("#wvB").innerHTML='<option value="">(none)</option>'+names.map(n=>`<option>${esc(n)}</option>`).join("");if(names.includes(pb))$("#wvB").value=pb;
+  fillWVSelect($("#wvA"),currentName,false);fillWVSelect($("#wvB"),null,true);
+  for(const k of["A","B"])if(wvPending[k]){$("#wv"+k).value=wvPending[k];if(k==="B"&&$("#wvMath").value==="A")$("#wvMath").value="A-B";wvPending[k]=null}
   const A=R_[$("#wvA").value],B=$("#wvB").value?R_[$("#wvB").value]:null,mode=$("#wvMode").value,math=$("#wvMath").value;
   let{ids,vals}=siteValues(A,mode),posRun=A;
+  wvIsDiff=!!B&&(math==="A-B"||math==="B-A");
   if(math!=="A"&&!B){$("#wvWarn").hidden=false;$("#wvWarn").textContent="Pick a Wafer B to use this display.";}
   else{$("#wvWarn").hidden=true;
     if(B&&math!=="A"){const b=siteValues(B,mode),mb=new Map(b.ids.map((id,k)=>[id,b.vals[k]]));
@@ -1403,7 +1416,7 @@ function renderWV(){
   if(!f){const w=$("#wvWarn");w.hidden=false;w.textContent=`Sensor positions unknown for ${ids.length-P.length} of ${ids.length} sites. Statistics use every site; the map needs positions (Data Viewer → File → Load sensor positions…).`}
   else if(P.length<ids.length){const w=$("#wvWarn");w.hidden=false;w.textContent=`${ids.length-P.length} sites have no position: left off the map, still in the statistics.`}
   let lo,hi;if($("#wvScale").value==="user"){lo=+$("#wvLo").value;hi=+$("#wvUp").value}else{lo=siteSt.min;hi=siteSt.max;$("#wvLo").value=lo.toFixed(2);$("#wvUp").value=hi.toFixed(2)}
-  if(!(hi>lo))hi=lo+.01;
+  if(!(hi-lo>=0.01)){const m=isFinite(hi+lo)?(hi+lo)/2:0;lo=m-0.05;hi=m+0.05} // a flat wafer stays one colour instead of magnifying rounding noise
   // center of mass (weights = value - min)
   let sw=0,sx=0,sy=0;P.forEach((p,i)=>{const wgt=V[i]-siteSt.min;sw+=wgt;sx+=wgt*p[0];sy+=wgt*p[1]});const com=sw>0?[sx/sw,sy/sw]:[0,0];
   const comR=Math.hypot(com[0],com[1]),comA=(Math.atan2(com[1],com[0])*180/Math.PI+360)%360;
@@ -1459,11 +1472,12 @@ function renderWV(){
   const mc=$("#cvWvMini");if(mc.clientWidth){const{g,w,h}=setup(mc),S=Math.min(w,h)/2-4,cx=w/2,cy=h/2;g.strokeStyle=css("--ink");g.beginPath();g.arc(cx,cy,S,0,7);g.stroke();
     g.fillStyle=css("--bad");P.forEach(p=>{g.fillRect(cx+p[0]/R*S-1.2,cy-p[1]/R*S-1.2,2.4,2.4)});
     g.strokeStyle=css("--ink");g.beginPath();g.moveTo(cx-Math.cos(ang)*S,cy+Math.sin(ang)*S);g.lineTo(cx+Math.cos(ang)*S,cy-Math.sin(ang)*S);g.stroke()}
-  if(xsY.length)chart($("#cvWvX"),[{x:xsX,y:xsY,color:css("--ink"),width:1,points:true,r:2.4,pointColor:i=>rgb(wvColor((xsY[i]-lo)/(hi-lo)))}],{xlabel:"position along section (mm)",ylabel:"°C"});
+  if(xsY.length)chart($("#cvWvX"),[{x:xsX,y:xsY,color:css("--ink"),width:1,points:true,r:2.4,pointColor:i=>rgb(wvColor((xsY[i]-lo)/(hi-lo)))}],{xlabel:"position along section (mm)",ylabel:"°C",hlines:[{y:lo,color:"transparent"},{y:hi,color:"transparent"}]});
   else setup($("#cvWvX"));
   // ---- histogram ----
   const hv=$("#wvHsrc").value==="map"&&grid.length?grid.map(q=>q[2]):vals,hs=rowStats(hv),bw=Math.max(1e-6,(+$("#wvRes").value)*hs.sigma);
-  const hc=$("#cvWvH");if(hc.clientWidth&&hs.sigma>0){const{g,w,h}=setup(hc),L=46,Rr=10,T=8,Bm=24,nb=Math.max(1,Math.ceil((hs.max-hs.min)/bw)),cnt=new Array(nb).fill(0);
+  const hc=$("#cvWvH");if(hc.clientWidth&&!(hs.sigma>1e-4)){const{g}=setup(hc);g.fillStyle=css("--muted");g.font="13px "+css("--sans");g.fillText("All values are the same: no spread to plot.",8,24)}
+  if(hc.clientWidth&&hs.sigma>1e-4){const{g,w,h}=setup(hc),L=46,Rr=10,T=8,Bm=24,nb=Math.max(1,Math.ceil((hs.max-hs.min)/bw)),cnt=new Array(nb).fill(0);
     hv.forEach(v=>cnt[Math.min(nb-1,Math.floor((v-hs.min)/bw))]++);const cmax=Math.max(...cnt);
     const pdf=x=>hv.length*bw*Math.exp(-((x-hs.mean)**2)/(2*hs.sigma**2))/(hs.sigma*Math.sqrt(2*Math.PI)),ymax=Math.max(cmax,pdf(hs.mean))*1.08;
     const X=v=>L+(v-hs.min)/(nb*bw)*(w-L-Rr),Y=v=>T+(1-v/ymax)*(h-T-Bm);
@@ -1476,6 +1490,15 @@ function renderWV(){
 ["#wvA","#wvB","#wvMath","#wvMode","#wvEdge","#wvSrc","#wvScale","#wvUp","#wvLo","#wvShowSites","#wvShowVals","#wvShowCom","#wvAng","#wvHsrc","#wvRes","#wvR0","#wvZone","#wvRings","#wvQrot"].forEach(x=>$(x).addEventListener("input",renderWV));
 $("#wvB").addEventListener("change",()=>{if($("#wvB").value&&$("#wvMath").value==="A")$("#wvMath").value="A-B";renderWV()});
 $("#wvDdof").addEventListener("change",()=>{DDOF=+$("#wvDdof").value;[current,...Object.values(runs),...baseline,...history].forEach(r=>delete r._sum);log(`Sigma now uses ${DDOF?"n − 1 (sample)":"n (population)"}.`);renderWV()});
+
+/* ---- Wafer Viewer: open files straight into Wafer A / Wafer B ---- */
+const wvPending={A:null,B:null};let wvTarget="A";
+$$("[data-wvopen]").forEach(b=>b.addEventListener("click",()=>{wvTarget=b.dataset.wvopen;$("#wvFile").click()}));
+$("#wvFile").addEventListener("change",e=>{const file=e.target.files[0];if(!file)return;const fr=new FileReader();fr.onload=()=>{try{loadCSV(fr.result,file.name,wvTarget)}catch(err){log("Could not read "+file.name+": "+err.message,"e")}};fr.readAsText(file);e.target.value=""});
+$("#wvPosBtn").addEventListener("click",()=>$("#wvPosFile").click());
+$("#wvPosFile").addEventListener("change",e=>{const file=e.target.files[0];if(!file)return;const fr=new FileReader();fr.onload=()=>{const R_=allRuns(),targets=[R_[$("#wvA").value],$("#wvB").value?R_[$("#wvB").value]:null].filter(r=>r&&r.fromFile);
+  if(!targets.length){log("Pick a file as Wafer A or B first; demo runs already have positions.","w");return}
+  const prev=current;targets.forEach(r=>{current=r;loadPositions(fr.result,file.name)});current=prev;renderWV()};fr.readAsText(file);e.target.value=""});
 
 /* ---- wafer size (default 300 mm, adjustable) ---- */
 const zoneRaw={rings:[70,90,120],r0:75}; // unrounded zone edges in mm, so resizing never drifts
