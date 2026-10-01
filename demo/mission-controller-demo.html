@@ -372,6 +372,8 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
               <label for="dvStart">Start Point</label><input type="number" id="dvStart" step="1" value="109">
               <label for="dvEnd">End Point</label><input type="number" id="dvEnd" step="1" value="109" disabled>
               <input type="checkbox" id="dvEndOn"><label for="dvEndOn">Enable End Point</label>
+              <button class="btn" id="dvWhole" title="Average every sample: each sensor's mean over the whole run">Average whole run</button>
+              <label for="dvDdof">Sigma</label><select id="dvDdof"><option value="1">n − 1</option><option value="0">n (population)</option></select>
             </div>
             <div class="pane-h">Template Statistics</div>
             <div class="tablewrap"><table class="tmpl" id="tmplTable"></table></div>
@@ -1489,7 +1491,9 @@ function renderWV(){
 }
 ["#wvA","#wvB","#wvMath","#wvMode","#wvEdge","#wvSrc","#wvScale","#wvUp","#wvLo","#wvShowSites","#wvShowVals","#wvShowCom","#wvAng","#wvHsrc","#wvRes","#wvR0","#wvZone","#wvRings","#wvQrot"].forEach(x=>$(x).addEventListener("input",renderWV));
 $("#wvB").addEventListener("change",()=>{if($("#wvB").value&&$("#wvMath").value==="A")$("#wvMath").value="A-B";renderWV()});
-$("#wvDdof").addEventListener("change",()=>{DDOF=+$("#wvDdof").value;[current,...Object.values(runs),...baseline,...history].forEach(r=>delete r._sum);log(`Sigma now uses ${DDOF?"n − 1 (sample)":"n (population)"}.`);renderWV()});
+$("#dvWhole").addEventListener("click",()=>{const r=current;$("#dvEndOn").checked=true;$("#dvEnd").disabled=false;$("#dvEnd").value=+r.t[r.t.length-1].toFixed(2);setStart(r.t[0]);log(`Statistics now average each sensor over the whole run (${r.t[0]}–${r.t[r.t.length-1]} s).`)});
+$("#dvDdof").addEventListener("change",()=>{$("#wvDdof").value=$("#dvDdof").value;$("#wvDdof").dispatchEvent(new Event("change"));renderViewer()});
+$("#wvDdof").addEventListener("change",()=>{DDOF=+$("#wvDdof").value;$("#dvDdof").value=$("#wvDdof").value;[current,...Object.values(runs),...baseline,...history].forEach(r=>delete r._sum);log(`Sigma now uses ${DDOF?"n − 1 (sample)":"n (population)"}.`);renderWV()});
 
 /* ---- Wafer Viewer: open files straight into Wafer A / Wafer B ---- */
 const wvPending={A:null,B:null};let wvTarget="A";
