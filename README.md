@@ -37,7 +37,12 @@ cd desktop
 npm install && npm start      # run from source (Windows, macOS or Linux)
 npm test                      # folder-watcher and link-check tests
 bash build-win.sh             # -> dist/Senson-win-x64.zip (portable: unzip, run Senson.exe)
+bash build-lite.sh            # -> dist/Senson-Windows.zip (~3 MB Senson.exe, needs Go)
 ```
+
+`build-lite.sh` makes the small build (`desktop/lite/`, Go): one `Senson.exe` that serves the page on
+127.0.0.1 and opens it in a Microsoft Edge app window (Edge is part of Windows 10/11), with the same
+folder watcher, FOUP link check and file saving as the Electron build.
 
 `build-win.sh` also writes `dist/parts/`: five 24 MB pieces plus `JOIN-Senson.bat`. Put them in one
 folder on Windows and double-click the .bat; it joins them, unzips, and starts `Senson\Senson.exe`.

@@ -1963,6 +1963,7 @@ function registerPositions(text){const map={};let seq=0;
     if(n.length>=3)map[Math.round(n[0])]=[n[1],n[2]];else if(n.length===2)map[++seq]=[n[0],n[1]]}
   const k=Object.keys(map).length;if(k>=3){normPos(map);posLib[k]=map}return k}
 function setLink(l){const chip=$("#foupText");chip.textContent=l.up?`FOUP connected · ${l.address}`:"FOUP not connected · check USB";chip.previousElementSibling.style.background=l.up?"#6ee787":"#f87171";
+  $("#connInfo").textContent=l.up?`Local IP ${l.address} · ConnectionUp`:"No FOUP link · ConnectionDown";
   log(l.up?`Network Status Changed: ConnectionUp Local IP: ${l.address} (${l.ifname})`:"Network Status Changed: ConnectionDown (no adapter on the FOUP subnet). Check the USB cable.",l.up?"g":"w")}
 function onMissionFile(d){log(`New mission file in ${d.dir}: ${d.name}`,"g");
   if(deskCfg.mode==="auto"){try{loadCSV(d.text,d.name,"dv",true)}catch(e){log("Could not read "+d.name+": "+e.message,"e")}return}
