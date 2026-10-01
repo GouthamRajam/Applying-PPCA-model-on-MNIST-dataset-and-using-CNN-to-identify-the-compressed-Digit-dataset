@@ -628,12 +628,12 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
           <div><div class="wv-sec">Spatial statistics · zone distribution</div>
             <select id="wvZone" style="width:100%">
               <option value="2">2 zone · center / edge</option>
-              <option value="4r">4 zone · rings</option>
+              <option value="4r" selected>4 zone · Inner / MI / MO / Outer</option>
               <option value="4q">4 zone · quadrants</option>
             </select>
             <div class="wv-opt" style="margin-top:8px">
               <label for="wvR0" data-z="2">Radius</label><span data-z="2"><input type="number" id="wvR0" value="75" min="0" max="150" step="5"> mm</span>
-              <label for="wvRings" data-z="4r">Ring edges</label><span data-z="4r"><input type="text" id="wvRings" value="50, 90, 125" style="width:110px"> mm</span>
+              <label for="wvRings" data-z="4r">Ring edges</label><span data-z="4r"><input type="text" id="wvRings" value="70, 90, 120" style="width:110px"> mm</span>
               <label for="wvQrot" data-z="4q">Rotation</label><span data-z="4q"><input type="number" id="wvQrot" value="0" step="15"> °</span>
             </div>
             <p class="hint" style="margin:6px 0 0" id="wvZoneHint"></p></div>
@@ -1375,9 +1375,9 @@ function renderWV(){
   const rings=$("#wvRings").value.split(/[ ,;]+/).map(Number).filter(v=>v>0&&v<R).sort((x,y)=>x-y).slice(0,3),qrot=(+$("#wvQrot").value||0);
   const R0=+$("#wvR0").value||0;
   const zoneDef=zm==="2"?{n:2,names:[`Center (r ≤ ${R0})`,`Edge (r > ${R0})`],of:(x,y)=>Math.hypot(x,y)<=R0?0:1}
-    :zm==="4r"?{n:rings.length+1,names:[0,...rings].map((r0,k)=>`Ring ${k+1} (${r0}–${k<rings.length?rings[k]:150} mm)`),of:(x,y)=>{const r=Math.hypot(x,y);let k=0;while(k<rings.length&&r>rings[k])k++;return k}}
+    :zm==="4r"?{n:rings.length+1,names:[0,...rings].map((r0,k)=>{const lab=rings.length===3?["Inner","MI","MO","Outer"][k]:`Ring ${k+1}`;return k<rings.length?`${lab} (${r0}–${rings[k]} mm)`:`${lab} (> ${r0} mm)`}),of:(x,y)=>{const r=Math.hypot(x,y);let k=0;while(k<rings.length&&r>rings[k])k++;return k}}
     :{n:4,names:["Q1","Q2","Q3","Q4"].map((q,k)=>`${q} (${(qrot+90*k)%360}–${(qrot+90*k+90)%360||360}°)`),of:(x,y)=>{const ang=((Math.atan2(y,x)*180/Math.PI-qrot)%360+360)%360;return Math.min(3,Math.floor(ang/90))}};
-  $("#wvZoneHint").textContent=zm==="2"?"Same as Wafer Viewer's center-to-edge (black / white region) split.":zm==="4r"?"Concentric rings, center outward. Enter 3 ring edges in mm.":"Quadrants counter-clockwise from the +x axis (3 o'clock), notch at 6 o'clock.";
+  $("#wvZoneHint").textContent=zm==="2"?"Same as Wafer Viewer's center-to-edge (black / white region) split.":zm==="4r"?"Inner 0–70, MI (middle-inner) 70–90, MO (middle-outer) 90–120, Outer > 120 mm. A site exactly on an edge belongs to the inner zone. Edit the edges if needed.":"Quadrants counter-clockwise from the +x axis (3 o'clock), notch at 6 o'clock.";
   const zv=[...Array(zoneDef.n)].map(()=>[]);P.forEach((p,i)=>zv[zoneDef.of(p[0],p[1])].push(V[i]));
   const ZC=[[37,99,235],[219,39,119],[22,163,74],[234,88,12],[124,58,237]];
   if(P.length){const zs=zv.map(v=>v.length?rowStats(v):null),means=zs.filter(Boolean).map(z=>z.mean),spread=means.length>1?Math.max(...means)-Math.min(...means):null;
