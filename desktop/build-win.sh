@@ -17,12 +17,18 @@ APP="$OUT/resources/app"; mkdir -p "$APP/app"
 cp main.js preload.js watcher.js package.json "$APP/"
 node prepare-app.js "$APP/app/index.html"
 cp README-windows.txt "$OUT/README.txt"
+# English UI only: drop the other Chromium locales (~45 MB) so the zip stays under 100 MB.
+find "$OUT/locales" -name "*.pak" ! -name "en-US.pak" -delete
 rm -f dist/Senson-win-x64.zip
 python3 - <<'PY'
 import os, zipfile
-with zipfile.ZipFile("dist/Senson-win-x64.zip", "w", zipfile.ZIP_DEFLATED) as z:
+with zipfile.ZipFile("dist/Senson-win-x64.zip", "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
     for root, _, files in os.walk("dist/Senson"):
         for f in files:
             p = os.path.join(root, f); z.write(p, os.path.relpath(p, "dist"))
 PY
-ls -lh dist/Senson-win-x64.zip
+# Also split into 24 MB parts (+ JOIN-Senson.bat) for channels with an upload limit.
+rm -rf dist/parts && mkdir -p dist/parts
+split -b 24M -d -a 1 dist/Senson-win-x64.zip dist/parts/Senson-win-x64.zip.part
+cp JOIN-Senson.bat dist/parts/
+ls -lh dist/Senson-win-x64.zip dist/parts

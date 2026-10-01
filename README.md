@@ -38,3 +38,7 @@ npm install && npm start      # run from source (Windows, macOS or Linux)
 npm test                      # folder-watcher and link-check tests
 bash build-win.sh             # -> dist/Senson-win-x64.zip (portable: unzip, run Senson.exe)
 ```
+
+`build-win.sh` also writes `dist/parts/`: five 24 MB pieces plus `JOIN-Senson.bat`. Put them in one
+folder on Windows and double-click the .bat; it joins them, unzips, and starts `Senson\Senson.exe`.
+On the first run, Windows SmartScreen may warn about an unsigned app: choose More info → Run anyway.
