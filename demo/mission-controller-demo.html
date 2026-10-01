@@ -803,13 +803,17 @@ function solve(A,b){const n=b.length;for(let c=0;c<n;c++){let p=c;for(let r=c+1;
   [A[c],A[p]]=[A[p],A[c]];[b[c],b[p]]=[b[p],b[c]];for(let r=c+1;r<n;r++){const f=A[r][c]/A[c][c];if(!f)continue;for(let k=c;k<n;k++)A[r][k]-=f*A[c][k];b[r]-=f*b[c]}}
   const x=new Float64Array(n);for(let r=n-1;r>=0;r--){let s=b[r];for(let k=r+1;k<n;k++)s-=A[r][k]*x[k];x[r]=s/A[r][r]}return x}
 const phi=r=>r>0?r*r*Math.log(r):0;
-function interpolator(pts,vals,method){
+function interpolator(pts0,vals0,method){
+  // merge sensors that share a position (a singular system otherwise gives NaN everywhere)
+  const pts=[],vals=[],cnt=[];pts0.forEach((p,i)=>{if(!isFinite(p[0])||!isFinite(p[1])||!isFinite(vals0[i]))return;
+    const k=pts.findIndex(q=>Math.hypot(q[0]-p[0],q[1]-p[1])<0.5);if(k<0){pts.push(p.slice());vals.push(vals0[i]);cnt.push(1)}else{vals[k]=(vals[k]*cnt[k]+vals0[i])/(cnt[k]+1);cnt[k]++}});
   const P=pts.map(p=>[p[0]/R,p[1]/R]),n=P.length;
   if(n<3||method==="idw")return(x,y)=>{x/=R;y/=R;let sw=0,sv=0;for(let j=0;j<n;j++){const d=Math.hypot(x-P[j][0],y-P[j][1]);if(d<1e-9)return vals[j];const w=1/(d*d);sw+=w;sv+=w*vals[j]}return sv/sw};
   const N=n+3,A=[],b=new Float64Array(N);for(let i=0;i<N;i++)A.push(new Float64Array(N));
   for(let i=0;i<n;i++){for(let j=0;j<n;j++)A[i][j]=phi(Math.hypot(P[i][0]-P[j][0],P[i][1]-P[j][1]));
     A[i][n]=A[n][i]=1;A[i][n+1]=A[n+1][i]=P[i][0];A[i][n+2]=A[n+2][i]=P[i][1];b[i]=vals[i]}
   const w=solve(A,b);
+  if(!w.every(isFinite))return interpolator(pts,vals,"idw");
   return(x,y)=>{x/=R;y/=R;let s=w[n]+w[n+1]*x+w[n+2]*y;for(let j=0;j<n;j++)s+=w[j]*phi(Math.hypot(x-P[j][0],y-P[j][1]));return s};
 }
 
@@ -875,7 +879,7 @@ function chart(c,series,o={}){
 }
 /* 13-level map palette: dark purple (cold) -> blue -> green -> yellow -> orange -> dark red (hot) */
 const BINS=[[63,0,90],[88,36,160],[52,62,210],[40,96,232],[66,150,90],[92,186,74],[150,214,72],[238,226,70],[244,170,44],[234,110,40],[214,56,40],[178,28,30],[128,10,22]];
-function binColor(f,discrete){f=Math.max(0,Math.min(1,f));const p=f*12;if(discrete){return BINS[Math.round(p)]}
+function binColor(f,discrete){if(!isFinite(f))f=0;f=Math.max(0,Math.min(1,f));const p=f*12;if(discrete){return BINS[Math.round(p)]}
   const i=Math.min(11,Math.floor(p)),u=p-i;return BINS[i].map((c,k)=>c+u*(BINS[i+1][k]-c))}
 const rgb=a=>`rgb(${a.map(Math.round).join(",")})`;
 function heat(v){return rgb(binColor(v,false))}
@@ -1240,20 +1244,33 @@ function exportCSV(){const m=current.meta||{},name=`C:\\LAM SensArray\\${m.hwid|
     [{label:"Close"},{label:"Copy CSV",primary:true,fn:()=>{const ta=$("#csvOut");if(navigator.clipboard)navigator.clipboard.writeText(txt).then(()=>log("CSV copied to clipboard.","g"),()=>{ta.focus();ta.select()});else{ta.focus();ta.select()}return false}}])}
 $("#csvFile").addEventListener("change",e=>{const file=e.target.files[0];if(!file)return;const fr=new FileReader();fr.onload=()=>{try{loadCSV(fr.result,file.name)}catch(err){log("Could not read "+file.name+": "+err.message,"e")}};fr.readAsText(file);e.target.value=""});
 function loadCSV(text,name){const lines=text.split(/\r?\n/).filter(l=>l.trim()),tags={};const rows=[];let xs=null,ys=null;
+  const num=c=>{c=c.trim().replace(/^"|"$/g,"");return c===""?NaN:Number(c)}; // blank cell = missing, never 0
   for(const l of lines){if(l.startsWith("#")){const[k,...v]=l.slice(1).split("=");if(v.length)tags[k.trim()]=v.join("=").trim();continue}
-    const cells=l.split(/[,;\t]/).map(c=>c.trim());const lab=cells[0].toLowerCase().replace(/[^a-z]/g,"");const rest=cells.slice(1).map(Number);
-    if((lab==="x"||lab==="xmm"||lab==="xpos")&&rest.every(isFinite)){xs=rest;continue}
-    if((lab==="y"||lab==="ymm"||lab==="ypos")&&rest.every(isFinite)){ys=rest;continue}
-    const nums=cells.map(Number);if(nums.length>2&&nums.every(n=>isFinite(n)))rows.push(nums)}
+    const cells=l.split(/[,;\t]/);const lab=cells[0].toLowerCase().replace(/[^a-z]/g,"");const rest=cells.slice(1).map(num);
+    if(lab==="x"||lab==="xmm"||lab==="xpos"){xs=rest;continue}
+    if(lab==="y"||lab==="ymm"||lab==="ypos"){ys=rest;continue}
+    const nums=cells.map(num);if(isFinite(nums[0])&&nums.slice(1).filter(isFinite).length>=2)rows.push(nums)}
   if(rows.length<1)throw new Error("no numeric rows found");
-  const k=Math.min(...rows.map(r=>r.length))-1;
-  const run={t:new Float64Array(rows.map(r=>r[0])),T:rows.map(r=>r.slice(1,k+1)),ids:[...Array(k)].map((_,i)=>i+1),fromFile:true,tags:{tool:tags.tool||"",chamber:tags.chamber||"",recipe:tags.recipe||name},
+  // keep only sensor columns that hold data; blank columns (e.g. a trailing comma) are dropped
+  const width=Math.max(...rows.map(r=>r.length))-1,keep=[],dropped=[];
+  for(let j=1;j<=width;j++){const v=rows.map(r=>r[j]),ok=v.filter(isFinite).length;(ok>=rows.length*0.5?keep:dropped).push(j)}
+  const T=rows.map(r=>keep.map(j=>r[j]));
+  for(let c=0;c<keep.length;c++){let last=NaN;for(let i=0;i<T.length;i++){if(isFinite(T[i][c]))last=T[i][c];else T[i][c]=last}
+    let first=T.find(r=>isFinite(r[c]));for(let i=0;i<T.length&&!isFinite(T[i][c]);i++)T[i][c]=first?first[c]:0}
+  const k=keep.length,ids=keep.map((_,i)=>i+1);
+  const run={t:new Float64Array(rows.map(r=>r[0])),T,ids,fromFile:true,tags:{tool:tags.tool||"",chamber:tags.chamber||"",recipe:tags.recipe||name},
     meta:{hwid:tags["Wafer HWID"]||name.replace(/\.[^.]+$/,""),fabId:tags["Fab Wafer ID"]||"",date:tags["Mission date"]||"",recipe:tags.Recipe||"Loaded from "+name}};
   if(run.t.length===1){run.t=new Float64Array([0,1]);run.T=[run.T[0],run.T[0].slice()]}
-  if(xs&&ys&&xs.length>=k&&ys.length>=k){run.pos=normPos(Object.fromEntries(run.ids.map((id,j)=>[id,[xs[j],ys[j]]])));posLib[k]=run.pos;log(`Sensor positions read from ${name}.`,"g")}
-  else if(posLib[k]){run.pos=posLib[k];log(`Using the ${k}-sensor positions loaded earlier.`,"g")}
+  if(xs&&ys){const pos={};keep.forEach((j,i)=>{const x=xs[j-1],y=ys[j-1];if(isFinite(x)&&isFinite(y))pos[ids[i]]=[x,y]});
+    if(Object.keys(pos).length>=3){run.pos=normPos(pos);posLib[k]=run.pos;log(`Sensor positions read from ${name}.`,"g")}}
+  if(!run.pos&&posLib[k]){run.pos=posLib[k];log(`Using the ${k}-sensor positions loaded earlier.`,"g")}
   setCurrent(run,"File: "+name);
-  log(`Loaded ${name}: ${run.t.length} samples × ${k} sensors. Statistics use all ${k} sensors.`,"g");
+  if(dropped.length)log(`Ignored ${dropped.length} empty column${dropped.length>1?"s":""} (blank cells, e.g. a trailing comma). They are not sensors.`,"w");
+  // a sensor stuck at exactly 0 for the whole run is not a temperature: leave it out, but let the user put it back
+  const dead=ids.filter((id,c)=>T.every(r=>r[c]===0));
+  dead.forEach(id=>dv.excluded.add(id));
+  if(dead.length)log(`Sensor${dead.length>1?"s":""} ${dead.map(i=>"S"+i).join(", ")} read 0.00 the whole run and ${dead.length>1?"are":"is"} left out of statistics. Re-include in Wafer View → Sensor Selector.`,"w");
+  log(`Loaded ${name}: ${run.t.length} samples × ${k} sensors.`,"g");
   if(!run.pos)log("No sensor positions in this file. Map is hidden until you use File → Load sensor positions….","w");
   renderViewer()}
 function normPos(map){const v=Object.values(map).flat(),mx=Math.max(...v.map(Math.abs)),mn=Math.min(...v);
@@ -1339,7 +1356,7 @@ function renderInterp(){fillRunSelect($("#ipRun"),currentName);const run=allRuns
 
 /* ================= WAFER VIEWER (compare) ================= */
 const WVC=[[160,40,240],[30,60,255],[20,200,240],[40,205,80],[240,226,40],[246,140,30],[214,36,30]];
-function wvColor(f){f=Math.max(0,Math.min(1,f));const p=f*(WVC.length-1),i=Math.min(WVC.length-2,Math.floor(p)),u=p-i;return WVC[i].map((c,k)=>c+u*(WVC[i+1][k]-c))}
+function wvColor(f){if(!isFinite(f))f=0;f=Math.max(0,Math.min(1,f));const p=f*(WVC.length-1),i=Math.min(WVC.length-2,Math.floor(p)),u=p-i;return WVC[i].map((c,k)=>c+u*(WVC[i+1][k]-c))}
 function siteValues(run,mode){
   if(mode==="dv"&&run===current){const d=dvValues();return{ids:d.ids,vals:d.vals}}
   if(mode==="ss"){const s=summarize(run);if(s.ssT)return{ids:run.ids.slice(),vals:s.ssT.slice()}}
