@@ -1402,8 +1402,8 @@ function renderWV(){
   const A=R_[$("#wvA").value],B=$("#wvB").value?R_[$("#wvB").value]:null,mode=$("#wvMode").value,math=$("#wvMath").value;
   let{ids,vals}=siteValues(A,mode),posRun=A;
   wvIsDiff=!!B&&(math==="A-B"||math==="B-A");
-  if(math!=="A"&&!B){$("#wvWarn").hidden=false;$("#wvWarn").textContent="Pick a Wafer B to use this display.";}
-  else{$("#wvWarn").hidden=true;
+  if(math!=="A"&&!B){$("#wvMath").value="A";return renderWV()} // no Wafer B: show Wafer A instead of a dead display
+  {$("#wvWarn").hidden=true;
     if(B&&math!=="A"){const b=siteValues(B,mode),mb=new Map(b.ids.map((id,k)=>[id,b.vals[k]]));
       if(math==="B"){ids=b.ids;vals=b.vals;posRun=B}
       else{const I=[],V=[];ids.forEach((id,k)=>{if(!mb.has(id))return;const x=vals[k],y=mb.get(id);I.push(id);V.push(math==="A-B"?x-y:math==="B-A"?y-x:(x+y)/2)});ids=I;vals=V}}}
