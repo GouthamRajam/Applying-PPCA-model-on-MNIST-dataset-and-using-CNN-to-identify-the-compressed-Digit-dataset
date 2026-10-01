@@ -303,11 +303,14 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
               <div class="lab">Start Setting:</div>
               <div class="row" style="margin:0;grid-column:2/4">
                 <select id="startSel" style="min-width:220px">
-                  <option value="leave">Leave Foup</option>
-                  <option value="above">Temperature Above</option>
-                  <option value="below">Temperature Below</option>
+                  <option value="leave">Leave Foup (start immediately)</option>
+                  <option value="delay">Start After Delay</option>
+                  <option value="attemp">Start At Temperature</option>
+                  <option value="transient">On Temperature Transient</option>
+                  <option value="pause">Pause Below Temperature</option>
                 </select>
-                <span id="trigWrap" hidden><input type="number" id="trigTemp" value="40" step="1" style="width:70px"> °C</span>
+                <span id="trigWrap" hidden><input type="number" id="trigTemp" value="40" step="1" style="width:70px" aria-label="Trigger temperature"> <span id="trigUnit">°C</span></span>
+                <span class="hint" id="trigHint"></span>
               </div>
             </div>
             <div class="sens-area">
@@ -342,7 +345,7 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
             </div></div>
           <div><button data-menu="gng" aria-expanded="false">Go/NoGo</button>
             <div class="menu" id="m-gng" hidden>
-              <button data-act="loadtpl">Load template "PM3 92 °C manual qual"</button>
+              <button data-act="loadtpl">Load template…</button>
               <button data-act="unloadtpl">Unload template</button>
               <hr><button data-act="gngview">Open Go/No-Go analysis</button>
             </div></div>
@@ -502,13 +505,30 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
     <!-- GO / NO-GO -->
     <section class="view" id="v-gonogo" hidden>
       <h1>Go/No-Go</h1>
-      <p class="lede">Each run is reduced to a few metrics and checked against the active template's control limits. GO only when every metric is inside its limits.</p>
+      <p class="lede">Pick a mission. The default signature for its recipe loads automatically. Every template parameter is computed on the mission and checked against the signature's minimum and maximum. GO only when every row passes.</p>
       <div class="panel">
-        <div class="row"><label for="gngRun">Run</label><select id="gngRun"></select><span class="hint" id="gngTemplate"></span></div>
+        <div class="row"><label for="gngRun">Mission</label><select id="gngRun" style="max-width:280px"></select>
+          <label for="gngSig">Signature</label><select id="gngSig" style="max-width:260px"></select><span class="hint" id="gngSigNote"></span>
+          <span class="spacer"></span><button class="btn" id="gngEdit">Edit Intervals</button></div>
         <div id="gngVerdict" style="margin:8px 0"></div>
         <div class="tablewrap"><table id="gngTable"></table></div>
+        <p class="hint" style="margin:6px 0 0">Click a row to show that interval in the charts below.</p>
       </div>
-      <div class="panel"><h2>All runs</h2><div class="tablewrap"><table id="gngAll"></table></div></div>
+      <div class="panel">
+        <div class="toolbar" role="tablist" id="gngTabs">
+          <button class="btn" data-gtab="data" aria-pressed="true">Mission Data</button>
+          <button class="btn" data-gtab="overlay" aria-pressed="false">Overlay</button>
+          <button class="btn" data-gtab="template" aria-pressed="false">Template</button>
+          <button class="btn" data-gtab="cmp" aria-pressed="false">2D Comparison</button>
+        </div>
+        <canvas id="cvGng" style="height:300px;margin-top:10px"></canvas>
+        <div id="gngCmp" hidden style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:10px">
+          <div><b>Mission</b><canvas id="cvG1" style="height:230px"></canvas><div class="hint" id="gngM1"></div></div>
+          <div><b>Template reference</b><canvas id="cvG2" style="height:230px"></canvas><div class="hint" id="gngM2"></div></div>
+          <div><b>Difference (mission − reference)</b><canvas id="cvG3" style="height:230px"></canvas><div class="hint" id="gngM3"></div></div>
+        </div>
+      </div>
+      <div class="panel"><h2>All missions</h2><div class="tablewrap"><table id="gngAll"></table></div></div>
     </section>
 
     <!-- SPC -->
@@ -716,21 +736,53 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
     <!-- TEMPLATE -->
     <section class="view" id="v-template" hidden>
       <h1>Create a Template</h1>
-      <p class="lede">A template is a named set of metrics checked on every run. Limits are computed from known-good baseline runs as mean ± k·σ.</p>
-      <div class="panel">
-        <div class="row"><label for="tplName">Template name</label><input type="text" id="tplName" value="PM 92 °C qualification"></div>
-        <div class="row"><label for="tplK">Limits from baseline: mean ±</label><input type="number" id="tplK" value="3" step="0.5" style="width:70px"><span>σ</span></div>
-        <div id="tplMetrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 12px;margin:8px 0"></div>
-        <button class="btn primary" id="tplBuild">Create template from 10 baseline runs</button>
+      <p class="lede">A template marks time intervals on a reference mission (for example the steady part of a recipe step) and lists the statistics to compute in each interval for a group of sensors. Signatures add limits to it; Go/No-Go, SPC and Data Viewer use it.</p>
+      <div class="grid2" style="grid-template-columns:minmax(220px,260px) minmax(0,1fr)">
+        <div class="panel"><h2>Available templates</h2>
+          <select id="tpList" size="8" style="width:100%"></select>
+          <div class="toolbar" style="margin-top:8px"><button class="btn" id="tpNew">Add New</button><button class="btn" id="tpCopy">Copy Selected</button><button class="btn" id="tpDel">Delete</button></div></div>
+        <div class="panel">
+          <div class="formgrid"><label for="tpName">Template name</label><input type="text" id="tpName">
+            <label for="tpDesc">Description</label><input type="text" id="tpDesc">
+            <label for="tpRef">Reference mission</label><select id="tpRef"></select></div>
+          <h2 style="margin-top:14px">Intervals</h2>
+          <p class="hint" style="margin:0 0 6px">Drag on the chart (Ctrl+drag also works): near an edge moves that edge, in the middle moves the whole interval. Or type the times.</p>
+          <canvas id="cvTp" style="height:230px;cursor:ew-resize"></canvas>
+          <div class="tablewrap"><table id="tpIntTable" class="tmpl"></table></div>
+          <div class="toolbar" style="margin-top:6px"><button class="btn" id="tpAddInt">Add interval</button></div>
+          <h2 style="margin-top:14px">Preview on other missions</h2>
+          <div class="tablewrap"><table id="tpPrev" class="tmpl"></table></div>
+          <h2 style="margin-top:14px">Parameters</h2>
+          <div class="tablewrap"><table id="tpParTable" class="tmpl"></table></div>
+          <div class="toolbar" style="margin-top:6px"><button class="btn" id="tpAddPar">Add New Parameter</button><button class="btn" id="tpPatterns">Sensor patterns…</button>
+            <span class="spacer"></span><button class="btn primary" id="tpSave">Save template</button></div>
+        </div>
       </div>
     </section>
 
     <!-- CONTROL LIMITS -->
     <section class="view" id="v-limits" hidden>
       <h1>Create a Control Limit</h1>
-      <p class="lede">Edit the lower and upper limits of the active template. Leave a box empty for a one-sided limit.</p>
-      <div class="panel"><div class="tablewrap"><table id="limTable"></table></div>
-        <div class="toolbar" style="margin-top:10px"><button class="btn primary" id="limSave">Save limits</button></div></div>
+      <p class="lede">A signature: acceptance limits (Minimum / Nominal / Maximum) for every parameter of a template. Limits are suggested from a dataset of known-good missions as mean ± k·σ. A signature can be the default for one or more recipes; Go/No-Go then loads it automatically.</p>
+      <div class="grid2" style="grid-template-columns:minmax(220px,260px) minmax(0,1fr)">
+        <div class="panel"><h2>Signatures</h2>
+          <select id="sgList" size="8" style="width:100%"></select>
+          <div class="toolbar" style="margin-top:8px"><button class="btn" id="sgNew">Add New</button><button class="btn" id="sgDel">Delete</button></div></div>
+        <div class="panel">
+          <div class="formgrid"><label for="sgName">Signature name</label><input type="text" id="sgName">
+            <label for="sgTpl">Template</label><select id="sgTpl"></select>
+            <label for="sgK">Suggested = mean ±</label><span class="row" style="margin:0"><input type="number" id="sgK" value="3" step="0.5" min="0.5" style="width:70px"> σ of the dataset</span></div>
+          <h2 style="margin-top:14px">DataSet · known-good missions</h2>
+          <div id="sgSet" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:2px 12px;font-size:13px;max-height:170px;overflow:auto"></div>
+          <h2 style="margin-top:14px">Acceptance limits</h2>
+          <div class="tablewrap"><table id="sgTable" class="tmpl"></table></div>
+          <div class="toolbar" style="margin-top:6px"><button class="btn" id="sgUse">Use Suggested (all rows)</button><span class="hint">Leave a box empty for no limit (± infinity).</span></div>
+          <canvas id="cvSg" style="height:210px;margin-top:8px"></canvas>
+          <h2 style="margin-top:14px">Recipes</h2>
+          <div id="sgRecipes"></div>
+          <div class="toolbar" style="margin-top:10px"><span class="spacer"></span><button class="btn primary" id="sgSave">Save signature</button></div>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -767,8 +819,11 @@ function gauss(r){let u=0;while(!u)u=r();return Math.sqrt(-2*Math.log(u))*Math.c
 /* ---------- sensor layout: traced from the operator's Mission Controller screenshot (approximate) ---------- */
 const R300=150;   // layout reference: sensor positions traced on a 300 mm wafer
 let R=150;        // current wafer radius in mm (300 mm wafer by default; adjustable)
-const PX=[[1275,755],[1383,752],[1483,787],[1180,802],[1372,820],[1562,858],[1218,857],[1300,855],[1430,874],[1362,884],[1107,880],[1505,898],[1258,908],[1193,930],[1452,937],[1605,955],[1298,963],[1397,977],[1507,977],[1072,977],[1139,988],[1204,997],[1344,1001],[1322,1015],[1357,1020],[1336,1033],[1475,1038],[1540,1046],[1605,1056],[1175,1057],[1283,1057],[1381,1073],[1077,1082],[1230,1099],[1485,1104],[1419,1126],[1177,1137],[1318,1152],[1251,1162],[1570,1155],[1460,1177],[1381,1180],[1122,1176],[1308,1216],[1497,1229],[1200,1248],[1403,1274],[1298,1280]];
-const sensors=PX.map((p,i)=>({id:i+1,x:(p[0]-1340)/275*R300,y:-(p[1]-1016)/275*R300,state:"en"}));
+/* 65-sensor layout from the EtchTemp user manual, Appendix A: S0..S64 named A01..J65, rings A (center) .. J (147 mm).
+   x = r·cos θ, y = r·sin θ, θ counter-clockwise from +x, notch at 6 o'clock (−y). 300 mm wafer. */
+const LAYOUT65=[["A01","A",0,0],["B02","B",8.9,-1.2],["B03","B",1.2,8.9],["B04","B",-8.9,1.2],["B05","B",-1.2,-8.9],["C06","C",22.5,-29.4],["C07","C",29.4,22.5],["C08","C",-22.5,29.4],["C09","C",-29.4,-22.5],["D10","D",45,-58.7],["D11","D",73.4,-9.7],["D12","D",58.7,45],["D13","D",9.7,73.4],["D14","D",-45,58.7],["D15","D",-73.4,9.7],["D16","D",-58.7,-45],["D17","D",-9.7,-73.4],["E18","E",79.8,-46.1],["E19","E",89.1,23.9],["E20","E",46.1,79.8],["E21","E",-23.9,89.1],["E22","E",-79.8,46.1],["E23","E",-89.1,-23.9],["E24","E",-46.1,-79.8],["E25","E",23.9,-89.1],["F26","F",67,-87.3],["F27","F",109.1,-14.4],["F28","F",87.3,67],["F29","F",14.4,109.1],["F30","F",-67,87.3],["F31","F",-109.1,14.4],["F32","F",-87.3,-67],["F33","F",-14.4,-109.1],["G34","G",121.2,-70],["G35","G",135.2,36.2],["G36","G",70,121.2],["G37","G",-36.2,135.2],["G38","G",-121.2,70],["G39","G",-135.2,-36.2],["G40","G",-70,-121.2],["G41","G",36.2,-135.2],["H42","H",124.7,-72],["H43","H",139.1,37.3],["H44","H",72,124.7],["H45","H",-37.3,139.1],["H46","H",-124.7,72],["H47","H",-139.1,-37.3],["H48","H",-72,-124.7],["H49","H",37.3,-139.1],["J50","J",89.5,-116.6],["J51","J",127.3,-73.5],["J52","J",145.7,-19.2],["J53","J",142,38],["J54","J",116.6,89.5],["J55","J",73.5,127.3],["J56","J",19.2,145.7],["J57","J",-38,142],["J58","J",-89.5,116.6],["J59","J",-127.3,73.5],["J60","J",-145.7,19.2],["J61","J",-142,-38],["J62","J",-116.6,-89.5],["J63","J",-73.5,-127.3],["J64","J",-19.2,-145.7],["J65","J",38,-142]];
+const sensors=LAYOUT65.map((p,i)=>({id:i+1,name:p[0],ring:p[1],x:p[2],y:p[3],state:"en"}));
+const layoutPos=()=>Object.fromEntries(sensors.map(s=>[s.id,[s.x,s.y]]));
 const byId=id=>sensors[id-1];
 const enabledIds=()=>sensors.filter(s=>s.state==="en").map(s=>s.id);
 /* Sensor positions per run. Simulated runs use the Mission Controller layout.
@@ -955,11 +1010,6 @@ function exampleRun(){return simulate({tStart:100,dur:120,period:1,tOut:210,seed
   meta:{hwid:"105139SE",fabId:"00D7A118KSB2",fw:"4.0.111",date:"7/12/2026 9:23 PM",example:true,
     recipe:"Manual Mission on 105139SE with 'Leave Foup' trigger with a 100s delay, sampling every 1s, with duration 120s, with No sensors disabled."}})}
 let current=exampleRun(),currentName="Example run (105139SE · PM3)";
-let template={name:"PM 92 °C qualification",limits:[]};
-function buildTemplate(keys,k){template.limits=keys.map(key=>{const v=baseline.map(r=>summarize(r)[key]).filter(x=>x!=null),m=avg(v),s=Math.sqrt(v.reduce((a,b)=>a+(b-m)**2,0)/(v.length-1));
-  return{metric:key,lsl:+(m-k*s).toFixed(3),usl:+(m+k*s).toFixed(3)}})}
-buildTemplate(["ss_mean","ss_range","ss_three_sigma"],3);
-template.limits.find(l=>l.metric==="ss_range").lsl=null;template.limits.find(l=>l.metric==="ss_three_sigma").lsl=null;
 const files={}; // every CSV the user has loaded, by display name
 function allRuns(){const o={};if(!Object.values(files).includes(current))o[currentName]=current;Object.assign(o,files);for(const k in runs)o[k]=runs[k];return o}
 function fillWVSelect(sel,keep,withNone){const prev=sel.value,fileNames=Object.keys(files),demo=[];
@@ -991,24 +1041,25 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeDialog();close
 /* ================= MANUAL MISSION CONTROLLER ================= */
 let mission=null,timer=null;
 const hms=s=>{s=Math.max(0,Math.round(s));return`${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor(s%3600/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`};
-const startLabel=v=>({leave:"Leave Foup",above:"Temperature Above",below:"Temperature Below"})[v];
+const startLabel=v=>({leave:"Leave Foup",delay:"Start After Delay",attemp:"Start At Temperature",transient:"On Temperature Transient",pause:"Pause Below Temperature"})[v];
 function settings(){return{period:+$("#period").value,delay:+$("#delay").value,acqMax:$("#acqMax").checked,acq:+$("#acqSec").value,start:$("#startSel").value,trig:+$("#trigTemp").value}}
 function wafer(){return slots[selSlot]}
 function maxLen(){const w=wafer();if(!w)return 0;const n=enabledIds().length,p=+$("#period").value||1;return Math.min(n?MEMORY/n*p:0,w.limit-w.total)}
 function recipeText(){const w=wafer();if(!w)return"";const s=settings(),dis=sensors.filter(x=>x.state!=="en").length;
-  const trig=s.start==="leave"?"'Leave Foup' trigger":`'${startLabel(s.start)} ${s.trig} °C' trigger`;
+  const trig=s.start==="leave"||s.start==="delay"?`'${startLabel(s.start)}' trigger`:`'${startLabel(s.start)} ${s.trig}${s.start==="transient"?" °C change":" °C"}' trigger`;
   return`Manual Mission on ${w.hwid} with ${trig} with ${s.delay>0?`a ${s.delay}s delay`:"no delay"}, sampling every ${s.period}s, with duration ${s.acqMax?"max length":s.acq+"s"}, with ${dis?dis+" sensors disabled":"No sensors disabled"}.`}
 function renderMC(){
   const w=wafer(),busy=mission&&["armed","delay","waiting","recording"].includes(mission.state);
   $("#slotBody").innerHTML=[12,22].map(k=>{const x=slots[k];return`<tr data-slot="${k}" class="${k===selSlot?"sel":""}" tabindex="0"><td>${k}</td><td>${x?x.hwid:""}</td><td>${x?esc(x.status):"No Wafer"}</td></tr>`}).join("");
   const led=(cls,label,val)=>`<div class="led"><i class="${cls}"></i><b>${label}:</b><span>${val??""}</span></div>`;
-  if(w){const vc=w.volt>=3.8?"":w.volt>=3.6?"amber":"red",rem=w.limit-w.total,uc=rem>1800?"":rem>0?"amber":"red";
+  if(w){const vc=w.volt>4.10?"":w.volt>=3.6?"amber":"red",rem=w.limit-w.total,uc=rem>1800?"":rem>0?"amber":"red";
     $("#leds").innerHTML=led(vc,"Battery",w.volt.toFixed(3)+" V")+led(uc,"Usage Time Remaining",hms(rem))+led("","Usage Time Total",hms(w.total))+
       led("","Temperature Cycles",`${w.cycles} of ${w.cyclesLim}`)+led("","Calibration Date",w.cal)+led("","Wafer FW Version",w.fw)+led("","Fab Wafer ID",w.fabId);}
   else $("#leds").innerHTML=["Battery","Usage Time Remaining","Usage Time Total","Temperature Cycles","Calibration Date","Wafer FW Version","Fab Wafer ID"].map(l=>led("",l,"")).join("");
   $("#recipeLine").innerHTML=w?"<b>Recipe:</b> "+esc(recipeText()):"";
   $("#acqBox").classList.toggle("disabled",!w);$$("#acqBox input,#acqBox select,#acqBox button").forEach(el=>el.disabled=!w||!!busy);
-  $("#trigWrap").hidden=$("#startSel").value==="leave";
+  {const sv=$("#startSel").value;$("#trigWrap").hidden=!["attemp","transient","pause"].includes(sv);$("#trigUnit").textContent=sv==="transient"?"°C change":"°C";
+   $("#trigHint").textContent={leave:"Records from the moment the wafer leaves the FOUP (after any delay).",delay:"Records once the delay has expired after leaving the FOUP.",attemp:"Waits until the wafer mean reaches this temperature, then the delay starts.",transient:"Waits for the wafer mean to change by this much from where it started, then the delay starts.",pause:"Records only while the wafer mean is at or above this temperature."}[sv]}
   $("#maxLenText").textContent=w?"("+hms(maxLen())+")":"";
   const dis=sensors.filter(s=>s.state==="dis").length,fac=sensors.filter(s=>s.state==="fac").length;
   $("#sensSummary").textContent=!dis&&!fac?"(All Enabled)":`(${enabledIds().length} of ${sensors.length})`;
@@ -1041,7 +1092,7 @@ $("#btnHT").addEventListener("click",()=>dialog("High Temp Wafers Initial Time",
 const RECIPES=[
   {name:"Manual Mission",acqMax:false,acq:60,period:1,delay:0,start:"leave"},
   {name:"PM3 92 °C check (120 s, 100 s delay)",acqMax:false,acq:120,period:1,delay:100,start:"leave"},
-  {name:"Heat-up capture (start above 40 °C)",acqMax:false,acq:180,period:.5,delay:0,start:"above",trig:40},
+  {name:"Heat-up capture (start at 40 °C)",acqMax:false,acq:180,period:.5,delay:0,start:"attemp",trig:40},
   {name:"Long soak (max length, 2 s)",acqMax:true,acq:60,period:2,delay:0,start:"leave"}];
 $("#btnRecipe").addEventListener("click",()=>{dialog("Select Mission Recipe",`<div class="list">${RECIPES.map((r,i)=>`<button data-r="${i}"><b>${esc(r.name)}</b><br><span class="hint">${r.acqMax?"Max length":r.acq+" s"} · every ${r.period} s · delay ${r.delay} s · ${startLabel(r.start)}${r.trig?" "+r.trig+" °C":""}</span></button>`).join("")}</div>`,[{label:"Cancel"}]);
   $("#dlgBody").querySelectorAll("[data-r]").forEach(b=>b.addEventListener("click",()=>{const r=RECIPES[+b.dataset.r];
@@ -1054,16 +1105,19 @@ function validate(){const s=settings(),ml=maxLen();
   if(!enabledIds().length)return"Enable at least one sensor.";if(wafer().volt<3.6)return"Battery too low to start a mission.";return null}
 $("#btnRun").addEventListener("click",()=>{const err=validate(),w=wafer();if(err){log(err,"e");return}
   const s=settings(),ids=enabledIds(),acq=s.acqMax?maxLen():s.acq,shown=Math.min(acq,900);
+  if(w.volt<=4.10)log(`Battery ${w.volt.toFixed(3)} V: the manual recommends more than 4.10 V before a survey.`,"w");
   const base={ids,seed:Math.floor(Math.random()*1e6)};let start;
-  if(s.start==="leave")start=s.delay;
-  else{let tt=0;for(;tt<2000;tt+=.5){const row=underlyingMax(base,tt);const v=s.start==="above"?Math.max(...row):Math.min(...row);if(s.start==="above"?v>=s.trig:v<=s.trig)break}
-    if(tt>=2000){log(`The wafer never ${s.start==="above"?"reaches":"falls to"} ${s.trig} °C in this process. Change the trigger.`,"e");return}start=tt+s.delay}
+  if(s.start==="leave"||s.start==="delay"||s.start==="pause")start=s.delay;
+  else{const wm=tt=>{const r=underlyingMax(base,tt);return r.reduce((a,b)=>a+b,0)/r.length},b0=wm(0);let tt=0;
+    for(;tt<2000;tt+=.5){const v=wm(tt);if(s.start==="attemp"?v>=s.trig:Math.abs(v-b0)>=s.trig)break}
+    if(tt>=2000){log(s.start==="attemp"?`The wafer never reaches ${s.trig} °C in this process. Change the trigger.`:`The wafer temperature never changes by ${s.trig} °C. Change the trigger.`,"e");return}
+    start=tt+s.delay;log(`Trigger expected at ${tt.toFixed(1)} s after leaving the FOUP; recording starts ${s.delay} s later (delay counts after the trigger).`)}
   mission={state:"armed",s,ids,acq,shown,start,base,t:0};
   log(`Mission sent to Wafer [${w.hwid}]: ${recipeText()}`);if(s.acqMax)log(`Demo: only the first ${shown} s of the ${hms(acq)} max length are simulated.`,"w");
   w.status="Mission Armed";renderMC();$("#progWrap").hidden=false;$("#progBar").style.width="0";
   const total=start+shown,speed=total/8;
   setTimeout(()=>{if(!mission||mission.state!=="armed")return;log(`Wafer [${w.hwid}] - Left Foup`);w.status="Out of Foup";
-    mission.state=s.start==="leave"?(s.delay>0?"delay":"recording"):"waiting";if(mission.state==="recording")log(`Wafer [${w.hwid}] - Recording started`,"g");renderMC();
+    mission.state=["attemp","transient"].includes(s.start)?"waiting":(s.delay>0?"delay":"recording");if(mission.state==="recording")log(`Wafer [${w.hwid}] - Recording started`,"g");renderMC();
     let last=performance.now();
     timer=setInterval(()=>{const now=performance.now();mission.t+=(now-last)/1000*speed;last=now;const t=mission.t;
       if(mission.state==="waiting"&&t>=start-s.delay){log(`Wafer [${w.hwid}] - Temperature trigger reached (${s.trig} °C)`,"g");mission.state=s.delay?"delay":"recording";renderMC()}
@@ -1077,6 +1131,8 @@ $("#btnDownload").addEventListener("click",()=>{const m=mission,w=wafer();m.stat
   log(`Manual Mission Download started for Wafer [${w.hwid}]…`);let p=0;const iv=setInterval(()=>{p+=7;$("#progBar").style.width=Math.min(100,p)+"%";if(p<100)return;clearInterval(iv);
     const period=Math.max(m.s.period,m.shown/2500),tOut=m.shown>=30?m.start+m.shown-10:Infinity;
     const run=simulate(Object.assign({},m.base,{dur:m.shown,period,tStart:m.start,tOut,meta:{hwid:w.hwid,fabId:w.fabId,fw:w.fw,date:new Date().toLocaleString([], {month:"numeric",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"}),recipe:recipeText()}}));
+    if(m.s.start==="pause"){const keep=run.T.map(r=>r.reduce((a,b)=>a+b,0)/r.length>=m.s.trig),n0=run.t.length;run.t=Float64Array.from(run.t.filter((_,i)=>keep[i]));run.T=run.T.filter((_,i)=>keep[i]);
+      log(`Pause Below ${m.s.trig} °C: ${n0-run.t.length} of ${n0} samples were below the threshold and not recorded.`);if(run.t.length<2){log("Nothing was recorded above the pause temperature.","e");run.t=new Float64Array([0,1]);run.T=[run.T[0]||m.base.ids.map(()=>NaN),run.T[0]||m.base.ids.map(()=>NaN)]}}
     w.total+=m.start+m.shown;w.volt=Math.max(3.5,w.volt-0.004);w.status="Ready";mission=null;$("#progWrap").hidden=true;
     log(`Download complete: ${run.t.length} samples × ${run.ids.length} sensors`,"g");
     log(`Usage for Wafer [${w.hwid}] = Total: ${hms(w.total)}, Remaining: ${hms(w.limit-w.total)}, Limit: ${hms(w.limit)}`);
@@ -1108,9 +1164,9 @@ const foups=[{id:"AF-01",station:"Station 1",tool:"GTT483",chamber:"PM3",wafer:"
 const amcResults=[];let amcTimer=null,amcPaused=false;
 function amcTick(){if(amcPaused)return;if(window.senson&&window.senson.desktop&&view!=="amc")return; // desktop: simulation runs only while its screen is open
 foups.forEach((f,i)=>{f.p+=[4,12,6,14,18,3][f.step]*(1+i*.15);if(f.p<100)return;f.p=0;
-  if(f.step===4){const d=chamberDefs[f.chamber]||chamberDefs.PM1;const run=simulate(Object.assign({},d,{seed:Math.floor(Math.random()*1e6),tags:{tool:f.tool,chamber:f.chamber,recipe:"AUTO-QUAL"},
+  if(f.step===4){const d=chamberDefs[f.chamber]||chamberDefs.PM1;const run=simulate(Object.assign({},d,{seed:Math.floor(Math.random()*1e6),tags:{tool:f.tool,chamber:f.chamber,recipe:"QUAL-92"},
       meta:{hwid:f.wafer,date:new Date().toLocaleString(),recipe:`Automatic mission on ${f.wafer} (${f.id})`}}));
-    const e=evaluate(summarize(run));amcResults.unshift({f:{...f},run,go:e.go,time:new Date().toTimeString().slice(0,8)});amcResults.splice(8);
+    const ev=gngEval(run,defaultSigFor(run)),e={go:ev.status==="PASS"};amcResults.unshift({f:{...f},run,go:e.go,st:ev.status,time:new Date().toTimeString().slice(0,8)});amcResults.splice(8);
     log(`AM FOUP ${f.id}: results uploaded for Wafer [${f.wafer}] · ${f.tool} ${f.chamber} · ${e.go?"GO":"NO-GO"}`,e.go?"g":"w")}
   f.step=(f.step+1)%STEPS.length;if(f.step===1)log(`AM FOUP ${f.id}: host started mission on ${f.tool} ${f.chamber}`)});
   if(view==="amc")renderAMC()}
@@ -1173,11 +1229,11 @@ function renderDVStats(){const{vals}=dvValues();if(!vals.length){$("#dvStats").i
   const st=rowStats(vals);
   $("#dvStats").innerHTML=[["Range",st.range],["Max",st.max],["Min",st.min],["Mean",st.mean],["Median",st.median],["Std. Dev",st.sigma]].map(a=>`<div><b>${a[0]}:</b><span>${a[1].toFixed(2)}</span></div>`).join("");
   const s0=dv.start,e0=$("#dvEndOn").checked?+$("#dvEnd").value:s0;
-  if(dv.tpl){const val={Mean:st.mean,Range:st.range,"3-Sigma":st.three,Max:st.max,Min:st.min};let go=true;
-    const rows=dv.tpl.rows.map(x=>{const v=val[x.stat],ok=(x.min==null||v>=x.min)&&(x.max==null||v<=x.max);go=go&&ok;
-      return`<tr><td class="n">${s0.toFixed(2)}</td><td class="n">${e0.toFixed(2)}</td><td class="n">${Math.abs(e0-s0).toFixed(2)}</td><td>${x.stat}</td><td class="n" style="color:${ok?"var(--good)":"var(--bad)"};font-weight:600">${v.toFixed(2)}</td><td>All</td><td class="n">${fmt(x.min)}</td><td class="n">${fmt(x.max)}</td></tr>`});
-    $("#tmplTable").innerHTML=`<tr><th>Start</th><th>End</th><th>Interval</th><th>Statistic</th><th class="n">Value</th><th>Sensor Pattern</th><th class="n">Min Limit</th><th class="n">Max Limit</th></tr>`+rows.join("");
-    $("#statsHead").innerHTML=`Template Statistics - ${esc(dv.tpl.name)} <span class="pill ${go?"go":"no"}" style="margin-left:8px">${go?"GO":"NO-GO"}</span>`}
+  const sig=dv.sigName?signatures.find(x=>x.name===dv.sigName):null;
+  if(sig){const ev=gngEval(current,sig),tau=ev.al&&ev.al.ok?ev.al.tau:0;
+    $("#tmplTable").innerHTML=`<tr><th>Start</th><th>End</th><th>Interval</th><th>Statistic</th><th class="n">Value</th><th>Sensor Pattern</th><th class="n">Min Limit</th><th class="n">Max Limit</th></tr>`+
+      ev.rows.map(r=>`<tr><td class="n">${r.iv?fmt(r.iv.start+tau,2):"—"}</td><td class="n">${r.iv?fmt(r.iv.end+tau,2):"—"}</td><td>${esc(r.interval)}</td><td>${r.stat}</td><td class="n" style="color:${r.ok?"var(--good)":"var(--bad)"};font-weight:600">${fmt(r.v,3)}</td><td>${esc(r.pattern)}</td><td class="n">${fmtLim(r.lsl)}</td><td class="n">${fmtLim(r.usl)}</td></tr>`).join("");
+    $("#statsHead").innerHTML=`Template Statistics - ${esc(sig.name)} <span class="pill ${ev.status==="PASS"?"go":ev.status==="FAIL"?"no":""}" style="margin-left:8px">${ev.status}</span>`+(ev.why?` <span class="hint" style="font-weight:400">${esc(ev.why)}</span>`:"")}
   else{$("#tmplTable").innerHTML=`<tr><th>Start</th><th>End</th><th>Interval</th><th>Statistic</th><th class="n">Value</th><th>Sensor Pattern</th><th class="n">Min Limit</th><th class="n">Max Limit</th></tr><tr><td colspan="8" class="hint">Go/NoGo → Load template to check limits.</td></tr>`;
     $("#statsHead").textContent="Template Statistics - No template loaded"}}
 function renderWaferInfo(){const m=current.meta||{},t=current.tags;
@@ -1201,7 +1257,7 @@ $("#btnCloseMap").addEventListener("click",()=>{dv.mapOpen=false;stopMovie();ren
 $$(".sidetabs button").forEach(b=>b.addEventListener("click",()=>toggleDrawer(b.dataset.drawer)));
 function toggleDrawer(name,force){dv.drawer=force?name:dv.drawer===name?null:name;$$(".sidetabs button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.drawer===dv.drawer)));
   ["sensors","radial","movie"].forEach(n=>$("#dr-"+n).hidden=dv.drawer!==n);if(dv.drawer==="sensors")renderSensGrid();renderMap()}
-const sensLabel=(run,id)=>run.labels?run.labels[id-1]:"S"+id;
+const sensLabel=(run,id)=>run.labels?run.labels[id-1]:(byId(id)?byId(id).name:"S"+id);
 function renderSensGrid(){$("#sensGrid").innerHTML=current.ids.map(id=>`<label title="${esc(sensLabel(current,id))}"><input type="checkbox" data-sid="${id}" ${dv.excluded.has(id)?"":"checked"}> ${esc(sensLabel(current,id))}</label>`).join("")}
 $("#sensGrid").addEventListener("change",e=>{const id=+e.target.dataset.sid;if(e.target.checked)dv.excluded.delete(id);else dv.excluded.add(id);drawDVChart();renderDVStats();renderMap()});
 $("#selAll").addEventListener("click",()=>{dv.excluded.clear();renderSensGrid();drawDVChart();renderDVStats();renderMap()});
@@ -1291,8 +1347,10 @@ $("#menubar").addEventListener("click",e=>{const a=e.target.closest("[data-act]"
   gowv:()=>show("wv"),
   export:exportCSV,
   example:()=>{setCurrent(exampleRun(),"Example run (105139SE · PM3)");renderViewer()},
-  loadtpl:()=>{dv.tpl={name:"PM3 92 °C manual qual",rows:[{stat:"Mean",min:92.0,max:93.0},{stat:"Range",min:null,max:1.5},{stat:"3-Sigma",min:null,max:1.2}]};log("Template loaded: PM3 92 °C manual qual","g");renderDVStats()},
-  unloadtpl:()=>{dv.tpl=null;renderDVStats()},
+  loadtpl:()=>{if(!signatures.length){log("No signatures yet: create one in Create a Control Limit.","e");return}const def=defaultSigFor(current);
+    dialog("Load template",`<p class="hint" style="margin:0">Pick a signature (a template with limits). Its intervals are matched to this mission.</p><div class="list">${signatures.map((sg,i)=>`<button data-sg="${i}"><b>${esc(sg.name)}</b>${def===sg?" · default for this recipe":""}<br><span class="hint">template ${esc(sg.template)}</span></button>`).join("")}</div>`,[{label:"Cancel"}]);
+    $("#dlgBody").querySelectorAll("[data-sg]").forEach(b=>b.addEventListener("click",()=>{dv.sigName=signatures[+b.dataset.sg].name;closeDialog();log(`Template loaded: ${dv.sigName}`,"g");renderDVStats()}))},
+  unloadtpl:()=>{dv.sigName=null;renderDVStats()},
   gngview:()=>show("gonogo"),
   tag:()=>askTags(current,false),
   copystats:()=>{const st=rowStats(dvValues().vals),txt=`t=${dv.start}s Mean ${st.mean.toFixed(2)} 3-sigma ${st.three.toFixed(2)} Range ${st.range.toFixed(2)} Max ${st.max.toFixed(2)} Min ${st.min.toFixed(2)}`;
@@ -1354,6 +1412,11 @@ function buildRun(d,tj,picked){const{rows,name,tags,xs,ys}=d;
   if(xs&&ys){const pos={};picked.forEach((j,i)=>{const x=xs[j-1],y=ys[j-1];if(isFinite(x)&&isFinite(y))pos[ids[i]]=[x,y]});
     if(Object.keys(pos).length>=3){run.pos=normPos(pos);posLib[k]=run.pos;log(`Sensor positions read from ${name}.`,"g")}}
   if(!run.pos&&posLib[k]){run.pos=posLib[k];log(`Using the ${k}-sensor positions loaded earlier.`,"g")}
+  if(!run.pos){const byName=new Map(sensors.map(s=>[s.name.toUpperCase(),s])),labs=run.labels.map(l=>String(l).trim().toUpperCase().replace(/^S(?=\d+$)/,"S"));
+    const sn=labs.filter(l=>/^S\d+$/.test(l)).map(l=>+l.slice(1)),base=sn.length&&Math.min(...sn)===0?0:1; // S0..S64 (manual) or S1..S65
+    const named=labs.map(l=>byName.get(l)||(/^S\d+$/.test(l)?sensors[+l.slice(1)-base]||null:null));
+    if(named.filter(Boolean).length>=Math.min(k,3)&&named.filter(Boolean).length>=k*0.8){run.pos={};named.forEach((s,i)=>{if(s)run.pos[ids[i]]=[s.x,s.y]});log(`Sensor positions matched by name (${named.filter(Boolean).length} of ${k}) to the 65-sensor manual layout.`,"g")}
+    else if(k===sensors.length){run.pos=layoutPos();log("65 sensors: using the manual's sensor layout (A01…J65) in column order. If your columns are in a different order, load a positions file.","g")}}
   let key="File: "+name;for(let n=2;files[key];n++)key=`File: ${name} (${n})`;files[key]=run;
   if(d.target==="dv")setCurrent(run,key);
   const skipped=d.cols.filter(c=>c.j!==tj&&!picked.includes(c.j));
@@ -1378,15 +1441,7 @@ $("#posFile").addEventListener("change",e=>{const file=e.target.files[0];if(!fil
 
 /* ================= ANALYSIS VIEWS ================= */
 function tilesHTML(s,keys){return keys.map(k=>{const m=mInfo(k);return`<div class="tile"><span>${m[1]}</span><b>${fmt(s[k],m[3])} <small style="font-size:12px;color:var(--muted)">${m[2]}</small></b></div>`}).join("")}
-function evaluate(s){const d=template.limits.map(l=>{const v=s[l.metric];const ok=v!=null&&(l.lsl==null||v>=l.lsl)&&(l.usl==null||v<=l.usl);return{...l,v,ok}});return{go:d.every(x=>x.ok),d}}
 function fillRunSelect(sel,keep){const names=Object.keys(allRuns());const prev=sel.value;sel.innerHTML=names.map(n=>`<option>${esc(n)}</option>`).join("");if(names.includes(prev))sel.value=prev;else if(keep&&names.includes(keep))sel.value=keep}
-function renderGNG(){fillRunSelect($("#gngRun"),currentName);const run=allRuns()[$("#gngRun").value],res=evaluate(summarize(run));
-  $("#gngTemplate").textContent="Template: "+template.name;
-  $("#gngVerdict").innerHTML=`<span class="verdict ${res.go?"go":"no"}">${res.go?"GO":"NO-GO"}</span>`;
-  $("#gngTable").innerHTML=`<tr><th>Metric</th><th class="n">Value</th><th class="n">LSL</th><th class="n">USL</th><th>Result</th></tr>`+res.d.map(x=>{const m=mInfo(x.metric);
-    return`<tr><td>${m[1]} (${m[2]})</td><td class="n">${fmt(x.v,m[3])}</td><td class="n">${fmt(x.lsl,m[3])}</td><td class="n">${fmt(x.usl,m[3])}</td><td><span class="pill ${x.ok?"go":"no"}">${x.ok?"PASS":"FAIL"}</span></td></tr>`}).join("");
-  $("#gngAll").innerHTML=`<tr><th>Run</th><th>Result</th><th>Failed metrics</th></tr>`+Object.entries(allRuns()).map(([n,r])=>{const e=evaluate(summarize(r));return`<tr><td>${esc(n)}</td><td><span class="pill ${e.go?"go":"no"}">${e.go?"GO":"NO-GO"}</span></td><td>${e.d.filter(x=>!x.ok).map(x=>mInfo(x.metric)[1]).join(", ")||"—"}</td></tr>`}).join("")}
-$("#gngRun").addEventListener("change",renderGNG);
 
 $("#spcMetric").innerHTML=METRICS.map(m=>`<option value="${m[0]}">${m[1]} (${m[2]})</option>`).join("");
 const spcSpec={ss_mean:[91.5,93.5]};
@@ -1636,6 +1691,250 @@ function syncSize(){const d=2*R,pre=["150","200","300","450"].includes(String(d)
 $$(".sizeSel").forEach(sel=>sel.addEventListener("change",()=>{if(sel.value==="custom"){$$(".sizeCustom").forEach(i=>i.hidden=false);sel.nextElementSibling.focus();return}setWaferSize(sel.value)}));
 $$(".sizeCustom").forEach(i=>i.addEventListener("change",()=>setWaferSize(i.value)));
 
+/* ================= TEMPLATES · SIGNATURES · GO/NO-GO =================
+   Following the EtchTemp manual's workflow: a Template = named intervals on a reference mission + parameters
+   (interval × statistic × sensor pattern). A Signature = Minimum/Nominal/Maximum per parameter, suggested from a
+   dataset of known-good missions as mean ± k·σ, optionally the default for recipes. Go/No-Go: PASS iff every
+   parameter is within [Minimum, Maximum].
+   Statistic definitions (the manual names them; formulas are ours, checked against its example figures):
+     over interval samples t and pattern sensors s, x(s,t):
+     Mean = mean of all x;  Max / Min = largest / smallest x;  Median = median of all x
+     Range = average over t of (max_s x − min_s x)     (average instantaneous cross-wafer range)
+     3Sigma = 3 × average over t of std_s x            (average instantaneous non-uniformity)
+     MaxAverage / MinAverage = highest / lowest per-sensor time average over the interval            */
+const STATS=["Mean","3Sigma","Max","Min","Range","Median","MaxAverage","MinAverage"];
+const PATTERN_RINGS={"Outer Ring":["J"],"Inner Disc":["A","B","C"],"Mask Edge":["G","H","J"]};
+const userPatterns={}; // name -> Set of sensor names (A01..J65)
+const patternNames=()=>["All","None",...Object.keys(PATTERN_RINGS),...Object.keys(userPatterns)];
+function patternMembers(pat){if(pat==="All")return new Set(sensors.map(s=>s.name));if(pat==="None")return new Set();
+  if(PATTERN_RINGS[pat])return new Set(sensors.filter(s=>PATTERN_RINGS[pat].includes(s.ring)).map(s=>s.name));return userPatterns[pat]||new Set()}
+function nearestLayout(p){const k=R/R300;let b=null,bd=Infinity;for(const s of sensors){const d=Math.hypot(s.x*k-p[0],s.y*k-p[1]);if(d<bd){bd=d;b=s}}return bd<=4*k?b:null}
+function patternCols(run,pat){
+  if(pat==="All")return run.ids.map((_,j)=>j);if(pat==="None")return[];
+  const mem=patternMembers(pat),out=[];
+  run.ids.forEach((id,j)=>{const p=posOf(run,id);const s=p&&nearestLayout(p);if(s&&mem.has(s.name))out.push(j)});return out}
+function median(a){const b=[...a].sort((x,y)=>x-y),n=b.length;return n?(n%2?b[(n-1)/2]:(b[n/2-1]+b[n/2])/2):NaN}
+function paramValue(run,iv,stat,pat){
+  const cols=patternCols(run,pat);if(!cols.length)return NaN;
+  const idx=[];run.t.forEach((t,i)=>{if(t>=iv.start-1e-9&&t<=iv.end+1e-9)idx.push(i)});if(!idx.length)return NaN;
+  const all=[],per=cols.map(()=>0);let sr=0,ss=0;
+  for(const i of idx){const row=cols.map(j=>run.T[i][j]);row.forEach((v,k)=>{all.push(v);per[k]+=v});const st=rowStats(row);sr+=st.range;ss+=st.sigma}
+  const pa=per.map(v=>v/idx.length);let mx=-Infinity,mn=Infinity;for(const v of all){if(v>mx)mx=v;if(v<mn)mn=v}
+  switch(stat){case"Mean":return avg(all);case"3Sigma":return 3*ss/idx.length;case"Range":return sr/idx.length;case"Max":return mx;case"Min":return mn;
+    case"Median":return median(all);case"MaxAverage":return Math.max(...pa);case"MinAverage":return Math.min(...pa)}return NaN}
+/* Interval alignment: shift the template's intervals onto another mission by matching the shape of the
+   wafer-mean trace (search ±max(30 s, 20 % of the reference length)); "unmatched" when shapes differ too much. */
+function alignShift(ref,run,ivs){
+  if(!ref||!run)return{tau:0,ok:false};if(ref===run)return{tau:0,ok:true,rms:0};
+  const mr=meanTrace(ref),mm=meanTrace(run),dt=Math.max(ref.t[1]-ref.t[0],1e-3);
+  const lo=Math.min(...ivs.map(i=>i.start)),hi=Math.max(...ivs.map(i=>i.end)),span=ref.t[ref.t.length-1]-ref.t[0],L=Math.max(30,0.2*span);
+  const tr=[],yr=[];ref.t.forEach((t,i)=>{if(t>=lo-10&&t<=hi+10){tr.push(t);yr.push(mr[i])}});if(tr.length<2)return{tau:0,ok:false};
+  const yrm=avg(yr);let best=Infinity,bt=0;
+  const t0=run.t[0],t1=run.t[run.t.length-1];
+  for(let tau=-L;tau<=L+1e-9;tau+=dt){ // compare shapes over the part of the window that falls inside the other mission (≥ 90 %)
+    const keep=[];for(let k=0;k<tr.length;k++){const q=tr[k]+tau;if(q>=t0-1e-9&&q<=t1+1e-9)keep.push(k)}if(keep.length<0.9*tr.length)continue;
+    const ym=interp1(keep.map(k=>tr[k]+tau),run.t,mm),yk=keep.map(k=>yr[k]),ymm=avg(ym),ykm=avg(yk);let s2=0;for(let k=0;k<yk.length;k++)s2+=((ym[k]-ymm)-(yk[k]-ykm))**2;
+    const rms=Math.sqrt(s2/yk.length)+Math.abs(tau)*1e-6;if(rms<best){best=rms;bt=tau}}
+  const refRange=Math.max(...mr)-Math.min(...mr);return{tau:bt,rms:best,ok:isFinite(best)&&best<=Math.max(0.1*refRange,0.3)}}
+// mission library: everything loaded + the simulated chambers + baseline qualification runs
+baseline.forEach(r=>{r.tags={tool:"GTT483",chamber:"PM1",recipe:"QUAL-92",operator:"demo"}});
+function allMissions(){const o=allRuns();baseline.forEach((r,i)=>o[`Baseline qual #${i+1} (PM1)`]=r);return o}
+const templates=[],signatures=[];
+function tplByName(n){return templates.find(t=>t.name===n)}
+function defaultSigFor(run){const rc=run&&run.tags&&run.tags.recipe;return rc?signatures.find(s=>s.defaults.includes(rc))||null:null}
+const INF=Infinity,fmtLim=v=>v===Infinity?"Infinity":v===-Infinity?"−Infinity":fmt(v,3);
+function gngEval(run,sig){
+  if(!sig)return{status:"No Data",why:"No signature for this mission's recipe. Pick one.",rows:[]};
+  const tpl=tplByName(sig.template);if(!tpl)return{status:"No Data",why:`Template "${sig.template}" not found.`,rows:[]};
+  const ref=allMissions()[tpl.ref],al=alignShift(ref,run,tpl.intervals);
+  const rows=tpl.params.map((p,i)=>{const iv=tpl.intervals.find(x=>x.name===p.interval);const lim=sig.limits[i]||{min:-INF,nom:0,max:INF};
+    const v=iv&&al.ok?paramValue(run,{start:iv.start+al.tau,end:iv.end+al.tau},p.stat,p.pattern):NaN;
+    const ok=isFinite(v)&&v>=lim.min&&v<=lim.max;
+    return{...p,iv,v,lsl:lim.min,usl:lim.max,ok,exp:!isFinite(v)?(p.pattern==="None"?"Pattern None: no value":"Could not be computed"):ok?"Within limits":v>lim.max?"Above upper spec limit":"Below lower spec limit"}});
+  if(!al.ok)return{status:"No Data",why:"The mission could not be matched to the template's intervals.",rows,al,tpl};
+  const real=rows.filter(r=>r.pattern!=="None");
+  if(real.some(r=>!isFinite(r.v)))return{status:"No Data",why:"Some parameters could not be computed (missing sensor positions for a pattern?).",rows,al,tpl};
+  return{status:real.every(r=>r.ok)?"PASS":"FAIL",rows,al,tpl}}
+function suggestLimits(tpl,dataset,k){const ref=allMissions()[tpl.ref],M=allMissions();
+  return tpl.params.map(p=>{const iv=tpl.intervals.find(x=>x.name===p.interval);const vals=[];
+    dataset.forEach(n=>{const r=M[n];if(!r||!iv)return;const al=alignShift(ref,r,tpl.intervals);if(!al.ok)return;const v=paramValue(r,{start:iv.start+al.tau,end:iv.end+al.tau},p.stat,p.pattern);if(isFinite(v))vals.push(v)});
+    if(vals.length<2)return{vals,min:-INF,nom:0,max:INF};const m=avg(vals),sd=Math.sqrt(vals.reduce((a,b)=>a+(b-m)**2,0)/(vals.length-1));return{vals,min:m-k*sd,nom:m,max:m+k*sd}})}
+// seed: a template on PM1 and a signature from the 10 baseline runs, default for recipe QUAL-92
+templates.push({name:"PM 92 °C qualification",desc:"Ramp and steady soak at 92 °C",ref:"PM1",
+  intervals:[{name:"Ramp",start:15,end:60},{name:"Steady",start:120,end:230}],
+  params:[{interval:"Steady",stat:"Mean",pattern:"All"},{interval:"Steady",stat:"3Sigma",pattern:"All"},{interval:"Steady",stat:"Range",pattern:"All"},
+    {interval:"Steady",stat:"Mean",pattern:"Outer Ring"},{interval:"Steady",stat:"Mean",pattern:"Inner Disc"},{interval:"Ramp",stat:"MaxAverage",pattern:"All"}]});
+(function(){const ds=baseline.map((_,i)=>`Baseline qual #${i+1} (PM1)`),sl=suggestLimits(templates[0],ds,3);
+  signatures.push({name:"PM 92 °C qual limits",template:templates[0].name,dataset:ds,k:3,limits:sl.map(x=>({min:x.min,nom:x.nom,max:x.max})),recipes:["QUAL-92"],defaults:["QUAL-92"]})})();
+
+/* ---- Go/No-Go screen ---- */
+let gngRow=0,gngTab="data";
+function fillMissionSelect(sel,keep){const names=Object.keys(allMissions()),prev=sel.value;sel.innerHTML=names.map(n=>`<option>${esc(n)}</option>`).join("");sel.value=names.includes(prev)?prev:(keep&&names.includes(keep)?keep:names[0])}
+function renderGNG(){fillMissionSelect($("#gngRun"),currentName);const run=allMissions()[$("#gngRun").value];
+  const def=defaultSigFor(run),prevSig=$("#gngSig").value;
+  $("#gngSig").innerHTML=`<option value="">(none)</option>`+signatures.map(s=>`<option>${esc(s.name)}</option>`).join("");
+  if($("#gngSig").dataset.run!==$("#gngRun").value){$("#gngSig").value=def?def.name:"";$("#gngSig").dataset.run=$("#gngRun").value}else $("#gngSig").value=prevSig;
+  const sig=signatures.find(s=>s.name===$("#gngSig").value)||null;
+  $("#gngSigNote").textContent=def&&sig===def?`default for recipe ${run.tags.recipe}`:(!def?`no default signature for recipe "${(run.tags&&run.tags.recipe)||"—"}"`:"");
+  const ev=gngEval(run,sig),st=ev.status;
+  $("#gngVerdict").innerHTML=`<span class="verdict ${st==="PASS"?"go":st==="FAIL"?"no":""}" style="${st==="No Data"?"background:var(--panel2);color:var(--muted)":""}">Go/No-Go Status: ${st}</span>`+(ev.why?` <span class="hint">${esc(ev.why)}</span>`:"")+(ev.al&&ev.al.ok&&ev.al.tau?` <span class="hint">Intervals shifted ${fmt(ev.al.tau,1)} s to match this mission.</span>`:"");
+  $("#gngTable").innerHTML=`<tr><th>Interval</th><th>Parameter</th><th>Sensor Pattern</th><th class="n">Parameter Value</th><th class="n">Lower Spec Limit</th><th class="n">Upper Spec Limit</th><th>Explanation</th></tr>`+
+    ev.rows.map((r,i)=>`<tr data-gr="${i}" style="cursor:pointer;background:${!isFinite(r.v)?"var(--panel2)":r.ok?"var(--good-soft)":"var(--bad-soft)"};${i===gngRow?"outline:2px solid var(--an)":""}"><td>${esc(r.interval)}</td><td>${r.stat}</td><td>${esc(r.pattern)}</td><td class="n">${fmt(r.v,3)}</td><td class="n">${fmtLim(r.lsl)}</td><td class="n">${fmtLim(r.usl)}</td><td style="color:${r.ok?"var(--good)":isFinite(r.v)?"var(--bad)":"var(--muted)"}">${r.exp}</td></tr>`).join("")||`<tr><td class="hint">No parameters.</td></tr>`;
+  gngRow=Math.min(gngRow,Math.max(0,ev.rows.length-1));drawGngTab(run,ev);
+  $("#gngAll").innerHTML=`<tr><th>Mission</th><th>Recipe</th><th>Default signature</th><th>Status</th><th>Failed parameters</th></tr>`+Object.entries(allMissions()).map(([n,r])=>{const sg=defaultSigFor(r),e=gngEval(r,sg);
+    return`<tr><td>${esc(n)}</td><td>${esc((r.tags&&r.tags.recipe)||"—")}</td><td>${esc(sg?sg.name:"—")}</td><td><span class="pill ${e.status==="PASS"?"go":e.status==="FAIL"?"no":""}">${e.status}</span></td><td>${e.rows.filter(x=>isFinite(x.v)&&!x.ok).map(x=>esc(`${x.interval} ${x.stat} [${x.pattern}]`)).join(", ")||"—"}</td></tr>`}).join("")}
+function intervalBands(ivs,tau,sel){return ivs.map(iv=>({a:iv.start+tau,b:iv.end+tau,sel:iv===sel,name:iv.name}))}
+function drawBands(c,bands){const m=c._map;if(!m)return;const g=c.getContext("2d"),dpr=window.devicePixelRatio||1;g.save();g.setTransform(dpr,0,0,dpr,0,0);
+  const X=v=>m.L+(v-m.xmin)/(m.xmax-m.xmin||1)*(m.w-m.L-m.Rr),h=c.clientHeight;
+  bands.forEach(b=>{g.fillStyle=b.sel?"rgba(22,163,74,.22)":"rgba(22,101,52,.12)";g.fillRect(X(b.a),10,X(b.b)-X(b.a),h-40);if(b.sel){g.strokeStyle="#ea580c";g.lineWidth=2;g.strokeRect(X(b.a),10,X(b.b)-X(b.a),h-40)}
+    g.fillStyle=css("--ink");g.font="11px "+css("--mono");g.textAlign="center";g.fillText(b.name,(X(b.a)+X(b.b))/2,22)});g.restore()}
+function intervalMap(run,iv){const idx=[];run.t.forEach((t,i)=>{if(t>=iv.start&&t<=iv.end)idx.push(i)});if(!idx.length)return null;
+  const vals=run.ids.map((_,j)=>avg(idx.map(i=>run.T[i][j])));return{ids:run.ids,vals}}
+function drawSmallMap(c,run,vals,lo,hi){if(!c.clientWidth)return;const{g,w,h}=setup(c),S=Math.min(w,h)/2-6,cx=w/2,cy=h/2;
+  const pz=positioned(run,run.ids,vals);if(pz.P.length<3){g.fillStyle=css("--muted");g.font="12px "+css("--sans");g.fillText("needs sensor positions",8,20);return}
+  const f=mapInterpolator(pz.P,pz.V,"tps"),M=90,img=new ImageData(M,M);
+  for(let j=0;j<M;j++)for(let i=0;i<M;i++){const x=((i+.5)/M*2-1)*R,y=(1-(j+.5)/M*2)*R;if(x*x+y*y>R*R)continue;const col=wvColor((f(x,y)-lo)/(hi-lo||1)),q=(j*M+i)*4;img.data[q]=col[0];img.data[q+1]=col[1];img.data[q+2]=col[2];img.data[q+3]=255}
+  const off=document.createElement("canvas");off.width=M;off.height=M;off.getContext("2d").putImageData(img,0,0);
+  g.save();g.beginPath();g.arc(cx,cy,S,0,7);g.clip();g.drawImage(off,cx-S,cy-S,2*S,2*S);g.restore();g.strokeStyle="#000";g.beginPath();g.arc(cx,cy,S,0,7);g.stroke()}
+function drawGngTab(run,ev){$$("#gngTabs [data-gtab]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.gtab===gngTab)));
+  $("#gngCmp").hidden=gngTab!=="cmp";$("#cvGng").hidden=gngTab==="cmp";const c=$("#cvGng");
+  const tpl=ev.tpl,ref=tpl&&allMissions()[tpl.ref],tau=ev.al&&ev.al.ok?ev.al.tau:0,row=ev.rows[gngRow],sel=row&&row.iv;
+  if(gngTab==="data"){chart(c,[{x:Array.from(run.t),y:meanTrace(run),color:css("--pink"),width:2}],{xlabel:"time (s)",ylabel:"wafer mean °C",legend:[{label:"mission (wafer mean)",color:css("--pink")}]});if(tpl)drawBands(c,intervalBands(tpl.intervals,tau,sel))}
+  else if(gngTab==="overlay"){if(!ref){setup(c);return}chart(c,[{x:Array.from(ref.t),y:meanTrace(ref),color:css("--op"),width:2},{x:Array.from(run.t).map(t=>t-tau),y:meanTrace(run),color:css("--pink"),width:2}],{xlabel:"time on reference axis (s)",ylabel:"wafer mean °C",legend:[{label:"template reference",color:css("--op")},{label:"mission (aligned)",color:css("--pink")}]});drawBands(c,intervalBands(tpl.intervals,0,sel))}
+  else if(gngTab==="template"){if(!ref){setup(c);return}chart(c,[{x:Array.from(ref.t),y:meanTrace(ref),color:css("--op"),width:2}],{xlabel:"time (s)",ylabel:"wafer mean °C",legend:[{label:`reference: ${tpl.ref}`,color:css("--op")}]});drawBands(c,intervalBands(tpl.intervals,0,sel))}
+  else{if(!sel||!ref){["#cvG1","#cvG2","#cvG3"].forEach(x=>setup($(x)));return}
+    const a=intervalMap(run,{start:sel.start+tau,end:sel.end+tau}),b=intervalMap(ref,sel);if(!a||!b)return;
+    const lo=Math.min(...a.vals,...b.vals),hi=Math.max(...a.vals,...b.vals);drawSmallMap($("#cvG1"),run,a.vals,lo,hi);drawSmallMap($("#cvG2"),ref,b.vals,lo,hi);
+    const mb=new Map(b.ids.map((id,k)=>[id,b.vals[k]])),dv2=a.ids.map((id,k)=>mb.has(id)?a.vals[k]-mb.get(id):NaN),dd=dv2.filter(isFinite);
+    const dlo=Math.min(...dd),dhi=Math.max(...dd);drawSmallMap($("#cvG3"),run,dv2.map(v=>isFinite(v)?v:0),dlo,dhi);
+    const sa=rowStats(a.vals),sb=rowStats(b.vals),sd=dd.length?rowStats(dd):null;
+    $("#gngM1").textContent=`Mean ${fmt(sa.mean,3)} · Range ${fmt(sa.range,3)}`;$("#gngM2").textContent=`Mean ${fmt(sb.mean,3)} · Range ${fmt(sb.range,3)}`;$("#gngM3").textContent=sd?`Mean diff ${fmt(sd.mean,3)} · from ${fmt(sd.min,3)} to ${fmt(sd.max,3)}`:"";}}
+$("#gngRun").addEventListener("change",()=>{gngRow=0;renderGNG()});$("#gngSig").addEventListener("change",renderGNG);
+$("#gngTable").addEventListener("click",e=>{const tr=e.target.closest("[data-gr]");if(tr){gngRow=+tr.dataset.gr;renderGNG()}});
+$$("#gngTabs [data-gtab]").forEach(b=>b.addEventListener("click",()=>{gngTab=b.dataset.gtab;renderGNG()}));
+$("#gngEdit").addEventListener("click",()=>{const s=signatures.find(x=>x.name===$("#gngSig").value);if(s)tpEdit=JSON.parse(JSON.stringify(tplByName(s.template)||{}));show("template")});
+
+/* ---- Template editor ---- */
+let tpEdit=null,tpSelInt=0;
+function tpLoad(name){const t=tplByName(name);tpEdit=t?JSON.parse(JSON.stringify(t)):null;tpSelInt=0}
+function renderTpl(){
+  const prev=$("#tpList").value;$("#tpList").innerHTML=templates.map(t=>`<option>${esc(t.name)}</option>`).join("");
+  if(!tpEdit&&templates.length)tpLoad(templates[0].name);if(tpEdit&&templates.some(t=>t.name===tpEdit._orig||t.name===tpEdit.name))$("#tpList").value=tpEdit._orig||tpEdit.name;else if(prev)$("#tpList").value=prev;
+  if(!tpEdit){tpEdit={name:"New template",desc:"",ref:Object.keys(allMissions())[0],intervals:[],params:[]}}
+  $("#tpName").value=tpEdit.name;$("#tpDesc").value=tpEdit.desc||"";
+  fillMissionSelect($("#tpRef"),tpEdit.ref);tpEdit.ref=$("#tpRef").value;
+  const ref=allMissions()[tpEdit.ref];
+  $("#tpIntTable").innerHTML=`<tr><th></th><th>Name</th><th class="n">Start (s)</th><th class="n">End (s)</th><th class="n">Length (s)</th><th></th></tr>`+tpEdit.intervals.map((iv,i)=>`<tr${i===tpSelInt?' style="outline:2px solid #ea580c"':""}><td><input type="radio" name="tpSel" data-sel="${i}" ${i===tpSelInt?"checked":""} aria-label="Select ${esc(iv.name)}"></td><td><input type="text" data-iv="${i}" data-f="name" value="${esc(iv.name)}" style="width:110px"></td><td class="n"><input type="number" data-iv="${i}" data-f="start" value="${+iv.start.toFixed(2)}" step="1" style="width:80px"></td><td class="n"><input type="number" data-iv="${i}" data-f="end" value="${+iv.end.toFixed(2)}" step="1" style="width:80px"></td><td class="n">${fmt(iv.end-iv.start,2)}</td><td><button class="btn" data-ivdel="${i}" aria-label="Remove interval">×</button></td></tr>`).join("");
+  if(ref){chart($("#cvTp"),[{x:Array.from(ref.t),y:meanTrace(ref),color:css("--op"),width:2}],{xlabel:"time (s) · reference mission",ylabel:"wafer mean °C"});drawBands($("#cvTp"),intervalBands(tpEdit.intervals,0,tpEdit.intervals[tpSelInt]))}
+  const M=allMissions(),rows=Object.entries(M).filter(([n])=>n!==tpEdit.ref).map(([n,r])=>{const al=tpEdit.intervals.length?alignShift(ref,r,tpEdit.intervals):{ok:false};return`<tr><td>${esc(n)}</td><td>${al.ok?'<span class="pill go">matched</span>':'<span class="pill no">unmatched</span>'}</td><td class="n">${al.ok?fmt(al.tau,1)+" s":"—"}</td></tr>`});
+  $("#tpPrev").innerHTML=`<tr><th>Mission</th><th>Intervals</th><th class="n">Shift</th></tr>`+rows.join("");
+  const opt=(list,v)=>list.map(x=>`<option ${x===v?"selected":""}>${esc(x)}</option>`).join("");
+  $("#tpParTable").innerHTML=`<tr><th>Interval</th><th>Statistic</th><th>Sensor Pattern</th><th class="n">Value on reference</th><th></th></tr>`+tpEdit.params.map((p,i)=>{const iv=tpEdit.intervals.find(x=>x.name===p.interval);const v=ref&&iv?paramValue(ref,iv,p.stat,p.pattern):NaN;
+    return`<tr><td><select data-par="${i}" data-f="interval">${opt(tpEdit.intervals.map(x=>x.name),p.interval)}</select></td><td><select data-par="${i}" data-f="stat">${opt(STATS,p.stat)}</select></td><td><select data-par="${i}" data-f="pattern">${opt(patternNames(),p.pattern)}</select></td><td class="n">${fmt(v,3)}</td><td><button class="btn" data-pardel="${i}" aria-label="Remove parameter">×</button></td></tr>`}).join("")}
+$("#tpList").addEventListener("change",()=>{tpLoad($("#tpList").value);if(tpEdit)tpEdit._orig=tpEdit.name;renderTpl()});
+$("#tpNew").addEventListener("click",()=>{const ref=Object.keys(allMissions())[0],r=allMissions()[ref],T=r.t[r.t.length-1];tpEdit={name:"New template",desc:"",ref,intervals:[{name:"Interval 1",start:+(T*.45).toFixed(1),end:+(T*.55).toFixed(1)}],params:[{interval:"Interval 1",stat:"Mean",pattern:"All"}]};tpSelInt=0;renderTpl()});
+$("#tpCopy").addEventListener("click",()=>{if(!tpEdit)return;tpEdit=JSON.parse(JSON.stringify(tpEdit));delete tpEdit._orig;tpEdit.name+=" copy";renderTpl();log("Copied template; rename it and save.")});
+$("#tpDel").addEventListener("click",()=>{const n=$("#tpList").value;const used=signatures.filter(s=>s.template===n);if(used.length){log(`Template "${n}" is used by signature "${used[0].name}". Delete that first.`,"e");return}
+  const i=templates.findIndex(t=>t.name===n);if(i>=0){templates.splice(i,1);tpEdit=null;log(`Template "${n}" deleted.`,"w");renderTpl()}});
+$("#tpRef").addEventListener("change",()=>{tpEdit.ref=$("#tpRef").value;renderTpl()});
+$("#tpName").addEventListener("input",()=>{tpEdit.name=$("#tpName").value});$("#tpDesc").addEventListener("input",()=>{tpEdit.desc=$("#tpDesc").value});
+$("#tpIntTable").addEventListener("change",e=>{const el=e.target;if(el.dataset.sel!=null){tpSelInt=+el.dataset.sel;return renderTpl()}const i=+el.dataset.iv;if(!(i>=0))return;const iv=tpEdit.intervals[i],f=el.dataset.f;
+  if(f==="name"){const old=iv.name,nn=el.value.trim()||old;if(nn!==old&&tpEdit.intervals.some(x=>x.name===nn)){log("Interval names must be unique.","e");return renderTpl()}iv.name=nn;tpEdit.params.forEach(p=>{if(p.interval===old)p.interval=nn})}
+  else{const v=+el.value,nv={...iv,[f]:v};if(!tpValidInterval(nv,i))return renderTpl();iv[f]=v}renderTpl()});
+$("#tpIntTable").addEventListener("click",e=>{const b=e.target.closest("[data-ivdel]");if(!b)return;const i=+b.dataset.ivdel,nm=tpEdit.intervals[i].name;tpEdit.intervals.splice(i,1);tpEdit.params=tpEdit.params.filter(p=>p.interval!==nm);tpSelInt=0;renderTpl()});
+function tpValidInterval(iv,skip){const ref=allMissions()[tpEdit.ref],T=ref?ref.t[ref.t.length-1]:Infinity;
+  if(!(iv.start>=0&&iv.end>iv.start&&iv.end<=T+1e-9)){log(`Interval must satisfy 0 ≤ start < end ≤ ${fmt(T,1)} s.`,"e");return false}
+  if(tpEdit.intervals.some((o,j)=>j!==skip&&iv.start<o.end&&iv.end>o.start)){log("Intervals may not overlap.","e");return false}return true}
+$("#tpAddInt").addEventListener("click",()=>{const ref=allMissions()[tpEdit.ref],T=ref.t[ref.t.length-1];let n=tpEdit.intervals.length+1;while(tpEdit.intervals.some(x=>x.name==="Interval "+n))n++;
+  const len=Math.max(1,T*.08);let st=0;for(const iv of [...tpEdit.intervals].sort((a,b)=>a.start-b.start)){if(iv.start-st>=len)break;st=Math.max(st,iv.end)}
+  if(st+len>T){log("No free space on the reference mission for another interval.","e");return}
+  tpEdit.intervals.push({name:"Interval "+n,start:+st.toFixed(1),end:+(st+len).toFixed(1)});tpSelInt=tpEdit.intervals.length-1;renderTpl()});
+$("#tpParTable").addEventListener("change",e=>{const el=e.target,i=+el.dataset.par;if(!(i>=0))return;tpEdit.params[i][el.dataset.f]=el.value;renderTpl()});
+$("#tpParTable").addEventListener("click",e=>{const b=e.target.closest("[data-pardel]");if(b){tpEdit.params.splice(+b.dataset.pardel,1);renderTpl()}});
+$("#tpAddPar").addEventListener("click",()=>{if(!tpEdit.intervals.length){log("Add an interval first.","e");return}tpEdit.params.push({interval:tpEdit.intervals[tpSelInt]?tpEdit.intervals[tpSelInt].name:tpEdit.intervals[0].name,stat:"Mean",pattern:"All"});renderTpl()});
+$("#tpSave").addEventListener("click",()=>{const nm=(tpEdit.name||"").trim();if(!nm){log("Give the template a name.","e");return}if(!tpEdit.intervals.length||!tpEdit.params.length){log("A template needs at least one interval and one parameter.","e");return}
+  const orig=tpEdit._orig,clash=templates.find(t=>t.name===nm&&t.name!==orig);if(clash){log(`A template named "${nm}" already exists.`,"e");return}
+  const clean={name:nm,desc:tpEdit.desc||"",ref:tpEdit.ref,intervals:tpEdit.intervals.map(x=>({...x})),params:tpEdit.params.map(x=>({...x}))};
+  const i=templates.findIndex(t=>t.name===(orig||nm));
+  if(i>=0){const old=templates[i];templates[i]=clean;signatures.forEach(s=>{if(s.template===old.name){s.template=nm;if(s.limits.length!==clean.params.length)s.limits=clean.params.map((_,k)=>s.limits[k]||{min:-INF,nom:0,max:INF})}})}else templates.push(clean);
+  tpEdit={...JSON.parse(JSON.stringify(clean)),_orig:nm};log(`Template "${nm}" saved: ${clean.intervals.length} intervals, ${clean.params.length} parameters.`,"g");renderTpl()});
+// drag intervals on the chart: near an edge moves that edge, inside moves the whole interval
+(function(){const c=$("#cvTp");let drag=null;const tOf=e=>{const m=c._map,r=c.getBoundingClientRect();return m.xmin+(e.clientX-r.left-m.L)/(m.w-m.L-m.Rr)*(m.xmax-m.xmin)};
+  c.addEventListener("mousedown",e=>{if(!c._map||!tpEdit)return;const t=tOf(e),m=c._map,tol=(m.xmax-m.xmin)*0.015;
+    let hit=-1,mode=null;tpEdit.intervals.forEach((iv,i)=>{if(Math.abs(t-iv.start)<=tol){hit=i;mode="start"}else if(Math.abs(t-iv.end)<=tol){hit=i;mode="end"}else if(hit<0&&t>iv.start&&t<iv.end){hit=i;mode="move"}});
+    if(hit<0)return;tpSelInt=hit;const iv=tpEdit.intervals[hit];drag={i:hit,mode,t0:t,s0:iv.start,e0:iv.end};e.preventDefault()});
+  window.addEventListener("mousemove",e=>{if(!drag)return;const d=tOf(e)-drag.t0,iv=tpEdit.intervals[drag.i];const nv=drag.mode==="start"?{start:drag.s0+d,end:drag.e0}:drag.mode==="end"?{start:drag.s0,end:drag.e0+d}:{start:drag.s0+d,end:drag.e0+d};
+    const ref=allMissions()[tpEdit.ref],T=ref.t[ref.t.length-1];if(nv.start<0||nv.end>T||nv.end-nv.start<0.5)return;if(tpEdit.intervals.some((o,j)=>j!==drag.i&&nv.start<o.end&&nv.end>o.start))return;
+    iv.start=+nv.start.toFixed(2);iv.end=+nv.end.toFixed(2);renderTpl()});
+  window.addEventListener("mouseup",()=>{drag=null})})();
+// sensor pattern editor
+function patternDialog(){let cur="Outer Ring",sel=new Set(patternMembers(cur));
+  const draw=()=>{const k=140/150;$("#patSvg").innerHTML=`<circle cx="0" cy="0" r="150" fill="${css("--panel2")}" stroke="${css("--ink")}"/><path d="M-6 150 a6 6 0 0 1 12 0" fill="${css("--panel")}"/>`+sensors.map(s=>`<g data-pn="${s.name}" style="cursor:pointer"><title>${s.name} (ring ${s.ring})</title><circle cx="${s.x*k}" cy="${-s.y*k}" r="7" fill="${sel.has(s.name)?css("--an"):"transparent"}" stroke="${css("--an")}" stroke-width="1.5"/><text x="${s.x*k}" y="${-s.y*k-9}" font-size="6" text-anchor="middle" fill="${css("--ink")}">${s.name}</text></g>`).join("");$("#patCount").textContent=`${sel.size} of ${sensors.length} sensors`};
+  dialog("Sensor Pattern",`<div class="row" style="margin:0"><label for="patSel">Pattern</label><select id="patSel">${patternNames().filter(n=>n!=="All"&&n!=="None").map(n=>`<option ${n===cur?"selected":""}>${esc(n)}</option>`).join("")}</select><b id="patCount"></b></div>
+    <svg id="patSvg" viewBox="-160 -165 320 330" style="width:100%;max-width:420px;align-self:center" role="img" aria-label="Click sensors to add or remove them"></svg>
+    <div class="row" style="margin:0"><button class="btn" id="patAll">Select All</button><button class="btn" id="patNone">Clear All</button><input type="text" id="patName" placeholder="name for Save New" style="flex:1;min-width:0"></div>
+    <p class="hint" style="margin:0">Built-in: Outer Ring = ring J (147 mm), Inner Disc = rings A–C (≤ 37 mm), Mask Edge = rings G–J (≥ 140 mm). Edit and use Save New to make your own; Save overwrites a pattern you created.</p>`,
+    [{label:"Cancel"},{label:"Save",fn:()=>{if(PATTERN_RINGS[cur]){log("Built-in patterns can't be overwritten: use Save New.","e");return false}userPatterns[cur]=new Set(sel);log(`Pattern "${cur}" saved (${sel.size} sensors).`,"g");if(view==="template")renderTpl()}},
+     {label:"Save New",primary:true,fn:()=>{const n=$("#patName").value.trim();if(!n||patternNames().includes(n)){log(n?`A pattern named "${n}" already exists.`:"Type a name for the new pattern.","e");return false}userPatterns[n]=new Set(sel);log(`Pattern "${n}" created (${sel.size} sensors).`,"g");if(view==="template")renderTpl()}}]);
+  draw();$("#patSvg").addEventListener("click",e=>{const g=e.target.closest("[data-pn]");if(!g)return;const n=g.dataset.pn;sel.has(n)?sel.delete(n):sel.add(n);draw()});
+  $("#patSel").addEventListener("change",()=>{cur=$("#patSel").value;sel=new Set(patternMembers(cur));draw()});
+  $("#patAll").addEventListener("click",()=>{sel=new Set(sensors.map(s=>s.name));draw()});$("#patNone").addEventListener("click",()=>{sel=new Set();draw()})}
+$("#tpPatterns").addEventListener("click",patternDialog);
+window.__sensonTest={paramValue,alignShift,gngEval,suggestLimits,patternCols,STATS,templates,signatures,sensors,allMissions}; // read-only hooks for automated tests
+
+/* ---- Signature (control limit) editor ---- */
+let sgEdit=null,sgRow=0;
+function sgNewFrom(tplName){const t=tplByName(tplName)||templates[0];return{name:"New signature",template:t?t.name:"",dataset:[],k:3,limits:t?t.params.map(()=>({min:-INF,nom:0,max:INF})):[],recipes:[],defaults:[]}}
+function renderLimits(){
+  const prev=$("#sgList").value;$("#sgList").innerHTML=signatures.map(s=>`<option>${esc(s.name)}</option>`).join("");
+  if(!sgEdit){sgEdit=signatures[0]?{...JSON.parse(JSON.stringify(signatures[0],(k,v)=>v===Infinity?"Inf":v===-Infinity?"-Inf":v),(k,v)=>v==="Inf"?INF:v==="-Inf"?-INF:v),_orig:signatures[0].name}:sgNewFrom()}
+  if(sgEdit._orig)$("#sgList").value=sgEdit._orig;else if(prev)$("#sgList").value=prev;
+  $("#sgName").value=sgEdit.name;$("#sgK").value=sgEdit.k;
+  $("#sgTpl").innerHTML=templates.map(t=>`<option ${t.name===sgEdit.template?"selected":""}>${esc(t.name)}</option>`).join("");
+  const tpl=tplByName(sgEdit.template);const M=allMissions();
+  $("#sgSet").innerHTML=Object.keys(M).map(n=>`<label><input type="checkbox" data-ds="${esc(n)}" ${sgEdit.dataset.includes(n)?"checked":""}> ${esc(n)}</label>`).join("");
+  if(!tpl){$("#sgTable").innerHTML='<tr><td class="hint">Create a template first.</td></tr>';return}
+  if(sgEdit.limits.length!==tpl.params.length)sgEdit.limits=tpl.params.map((_,i)=>sgEdit.limits[i]||{min:-INF,nom:0,max:INF});
+  const sug=suggestLimits(tpl,sgEdit.dataset,+sgEdit.k||3);sgEdit._sug=sug;
+  const box=(i,f,v)=>`<input type="text" data-lim="${i}" data-f="${f}" value="${v===INF||v===-INF?"":+v.toFixed(3)}" placeholder="${f==="min"?"−Infinity":f==="max"?"Infinity":"0"}" style="width:84px;border-color:${f==="nom"?"var(--good)":"var(--cfg)"}">`;
+  $("#sgTable").innerHTML=`<tr><th>Interval</th><th>Parameter</th><th>Sensor Pattern</th><th>Minimum</th><th>Nominal</th><th>Maximum</th><th class="n">Suggested Min</th><th class="n">Suggested Nom</th><th class="n">Suggested Max</th><th class="n">n</th></tr>`+
+    tpl.params.map((p,i)=>{const l=sgEdit.limits[i],s2=sug[i];return`<tr data-sr="${i}" style="${i===sgRow?"outline:2px solid var(--an)":""}"><td>${esc(p.interval)}</td><td>${p.stat}</td><td>${esc(p.pattern)}</td><td>${box(i,"min",l.min)}</td><td>${box(i,"nom",l.nom)}</td><td>${box(i,"max",l.max)}</td><td class="n">${fmtLim(s2.min)}</td><td class="n">${s2.vals.length>1?fmt(s2.nom,3):"0.000"}</td><td class="n">${fmtLim(s2.max)}</td><td class="n">${s2.vals.length}</td></tr>`}).join("");
+  const recs=[...new Set(Object.values(M).map(r=>r.tags&&r.tags.recipe).filter(Boolean).concat(sgEdit.recipes))];
+  $("#sgRecipes").innerHTML=`<table class="tmpl"><tr><th>Recipe</th><th>Associate</th><th>Default for Go/No-Go</th><th>Current default</th></tr>`+recs.map(rc=>{const cur=signatures.find(s=>s.defaults.includes(rc));return`<tr><td>${esc(rc)}</td><td><input type="checkbox" data-rc="${esc(rc)}" ${sgEdit.recipes.includes(rc)?"checked":""} aria-label="Associate ${esc(rc)}"></td><td><input type="checkbox" data-rd="${esc(rc)}" ${sgEdit.defaults.includes(rc)?"checked":""} ${sgEdit.recipes.includes(rc)?"":"disabled"} aria-label="Default for ${esc(rc)}"></td><td>${esc(cur?cur.name:"—")}</td></tr>`}).join("")+`</table>`;
+  sgRow=Math.min(sgRow,tpl.params.length-1);drawSgHist(tpl,sug)}
+function drawSgHist(tpl,sug){const c=$("#cvSg"),s2=sug[sgRow],l=sgEdit.limits[sgRow],p=tpl.params[sgRow];if(!c.clientWidth||!p)return;
+  if(!s2||s2.vals.length<2){const{g}=setup(c);g.fillStyle=css("--muted");g.font="13px "+css("--sans");g.fillText("Tick 2 or more known-good missions in the DataSet to see the distribution and suggested limits.",8,24);return}
+  const v=s2.vals,lo=Math.min(...v,isFinite(l.min)?l.min:Infinity,s2.min),hi=Math.max(...v,isFinite(l.max)?l.max:-Infinity,s2.max),nb=10,bw=(hi-lo)/nb||1,cnt=new Array(nb).fill(0);v.forEach(x=>cnt[Math.min(nb-1,Math.floor((x-lo)/bw))]++);
+  const xs=cnt.map((_,k)=>lo+(k+.5)*bw);const hl=[];if(isFinite(l.min))hl.push({y:l.min});
+  chart(c,[{x:xs,y:cnt,color:css("--good"),width:0,points:true,r:5,noLine:true},{x:v.map((_,i)=>i),y:v,noLine:true,color:"transparent"}].slice(0,1),{xlabel:`${p.interval} – ${p.stat} [${p.pattern}] · value`,ylabel:"missions"});
+  const m=c._map,g=c.getContext("2d"),dpr=window.devicePixelRatio||1;g.save();g.setTransform(dpr,0,0,dpr,0,0);const X=x=>m.L+(x-m.xmin)/(m.xmax-m.xmin||1)*(m.w-m.L-m.Rr),h=c.clientHeight;
+  const ln=(x,col,dash,lab)=>{if(!isFinite(x)||x<m.xmin||x>m.xmax)return;g.strokeStyle=col;g.setLineDash(dash);g.lineWidth=2;g.beginPath();g.moveTo(X(x),10);g.lineTo(X(x),h-30);g.stroke();g.setLineDash([]);g.fillStyle=col;g.font="11px "+css("--mono");g.textAlign="center";g.fillText(lab,X(x),h-32)};
+  ln(l.min,css("--cfg"),[5,4],"Min");ln(l.max,css("--cfg"),[5,4],"Max");ln(l.nom,css("--good"),[2,3],"Nom");g.restore()}
+$("#sgList").addEventListener("change",()=>{const s=signatures.find(x=>x.name===$("#sgList").value);if(s){sgEdit={...s,dataset:[...s.dataset],limits:s.limits.map(x=>({...x})),recipes:[...s.recipes],defaults:[...s.defaults],_orig:s.name};sgRow=0;renderLimits()}});
+$("#sgNew").addEventListener("click",()=>{sgEdit=sgNewFrom(templates[0]&&templates[0].name);sgRow=0;renderLimits()});
+$("#sgDel").addEventListener("click",()=>{const i=signatures.findIndex(s=>s.name===$("#sgList").value);if(i>=0){log(`Signature "${signatures[i].name}" deleted.`,"w");signatures.splice(i,1);sgEdit=null;renderLimits()}});
+$("#sgName").addEventListener("input",()=>{sgEdit.name=$("#sgName").value});
+$("#sgK").addEventListener("change",()=>{sgEdit.k=+$("#sgK").value||3;renderLimits()});
+$("#sgTpl").addEventListener("change",()=>{sgEdit.template=$("#sgTpl").value;const t=tplByName(sgEdit.template);sgEdit.limits=t.params.map(()=>({min:-INF,nom:0,max:INF}));sgRow=0;renderLimits()});
+$("#sgSet").addEventListener("change",e=>{const n=e.target.dataset.ds;if(n==null)return;const i=sgEdit.dataset.indexOf(n);e.target.checked?(i<0&&sgEdit.dataset.push(n)):(i>=0&&sgEdit.dataset.splice(i,1));renderLimits()});
+$("#sgTable").addEventListener("change",e=>{const el=e.target,i=+el.dataset.lim,f=el.dataset.f;if(!(i>=0))return;const t=el.value.trim().toLowerCase();
+  const v=t===""||t==="infinity"||t==="-infinity"||t==="−infinity"?(f==="min"?-INF:f==="max"?INF:0):+el.value;if(!isFinite(v)&&!(v===INF||v===-INF)){log("Enter a number, or leave it empty for no limit.","e");return renderLimits()}
+  sgEdit.limits[i]={...sgEdit.limits[i],[f]:v};renderLimits()});
+$("#sgTable").addEventListener("click",e=>{const tr=e.target.closest("[data-sr]");if(tr&&e.target.tagName!=="INPUT"){sgRow=+tr.dataset.sr;renderLimits()}});
+$("#sgTable").addEventListener("focusin",e=>{const tr=e.target.closest("[data-sr]");if(tr&&+tr.dataset.sr!==sgRow){sgRow=+tr.dataset.sr;const tpl=tplByName(sgEdit.template);drawSgHist(tpl,sgEdit._sug);$$("#sgTable [data-sr]").forEach(r=>r.style.outline=+r.dataset.sr===sgRow?"2px solid var(--an)":"")}});
+$("#sgUse").addEventListener("click",()=>{const sug=sgEdit._sug||[];let n=0;sug.forEach((s2,i)=>{if(s2.vals.length>1){sgEdit.limits[i]={min:s2.min,nom:s2.nom,max:s2.max};n++}});log(n?`Suggested limits applied to ${n} parameters (mean ± ${sgEdit.k}σ of ${sgEdit.dataset.length} missions).`:"Tick at least 2 known-good missions in the DataSet first.",n?"g":"e");renderLimits()});
+$("#sgRecipes").addEventListener("change",e=>{const a=e.target.dataset.rc,d=e.target.dataset.rd;
+  if(a!=null){if(e.target.checked){if(!sgEdit.recipes.includes(a))sgEdit.recipes.push(a)}else{sgEdit.recipes=sgEdit.recipes.filter(x=>x!==a);sgEdit.defaults=sgEdit.defaults.filter(x=>x!==a)}}
+  if(d!=null){if(e.target.checked){if(!sgEdit.defaults.includes(d))sgEdit.defaults.push(d)}else sgEdit.defaults=sgEdit.defaults.filter(x=>x!==d)}renderLimits()});
+$("#sgSave").addEventListener("click",()=>{const nm=(sgEdit.name||"").trim();if(!nm){log("Give the signature a name.","e");return}const tpl=tplByName(sgEdit.template);if(!tpl){log("Pick a template.","e");return}
+  const bad=sgEdit.limits.findIndex(l=>!(l.min<=l.nom&&l.nom<=l.max));if(bad>=0){log(`Row ${bad+1}: limits must satisfy Minimum ≤ Nominal ≤ Maximum.`,"e");return}
+  if(signatures.some(s=>s.name===nm&&s.name!==sgEdit._orig)){log(`A signature named "${nm}" already exists.`,"e");return}
+  const clean={name:nm,template:tpl.name,dataset:[...sgEdit.dataset],k:+sgEdit.k||3,limits:sgEdit.limits.map(l=>({...l})),recipes:[...sgEdit.recipes],defaults:[...sgEdit.defaults]};
+  signatures.forEach(s=>{if(s.name!==(sgEdit._orig||nm))s.defaults=s.defaults.filter(r=>!clean.defaults.includes(r))}); // one default per recipe
+  const i=signatures.findIndex(s=>s.name===(sgEdit._orig||nm));if(i>=0)signatures[i]=clean;else signatures.push(clean);
+  sgEdit={...clean,dataset:[...clean.dataset],limits:clean.limits.map(x=>({...x})),recipes:[...clean.recipes],defaults:[...clean.defaults],_orig:nm};
+  log(`Signature "${nm}" saved${clean.defaults.length?`; default for ${clean.defaults.join(", ")}`:""}.`,"g");renderLimits()});
+
 /* ================= CONFIGURATION ================= */
 const flow=["FOUP load port · read wafer ID","Transfer to PM3","PM3 · chuck 92 °C · 120 s","Return to FOUP · download mission","Tag data · export .csv to C:\\LAM SensArray"];
 function renderFlow(){$("#flow").innerHTML=flow.map((s,i)=>`<div class="step"><b>${i+1}</b><span>${esc(s)}</span><button class="btn" data-del="${i}" aria-label="Remove step ${i+1}">Remove</button></div>`).join("")}
@@ -1644,12 +1943,6 @@ $("#flowAdd").addEventListener("click",()=>{const v=$("#flowNew").value.trim();i
 const TAGS=["tool","chamber","recipe","operator","lot"];
 function renderTags(){$("#tagForm").innerHTML=`<span class="hint" style="grid-column:1/-1">Editing tags of: <b>${esc(currentName)}</b></span>`+TAGS.map(t=>`<label for="tag-${t}">${t}</label><input type="text" id="tag-${t}" value="${esc(current.tags[t]||"")}">`).join("")}
 $("#tagSave").addEventListener("click",()=>{TAGS.forEach(t=>{const v=$("#tag-"+t).value.trim();if(v)current.tags[t]=v;else delete current.tags[t]});log("Tags saved for "+currentName+".","g")});
-function renderTpl(){const on=new Set(template.limits.map(l=>l.metric));$("#tplMetrics").innerHTML=METRICS.map(m=>`<label class="row" style="margin:2px 0"><input type="checkbox" id="tm-${m[0]}" ${on.has(m[0])?"checked":""}>${m[1]}</label>`).join("")}
-$("#tplBuild").addEventListener("click",()=>{const keys=METRICS.map(m=>m[0]).filter(k=>$("#tm-"+k).checked);if(!keys.length){log("Pick at least one metric for the template.","e");return}
-  template.name=$("#tplName").value.trim()||"Untitled template";buildTemplate(keys,+$("#tplK").value||3);log(`Template "${template.name}" created with ${keys.length} metrics from 10 baseline runs.`,"g");show("limits")});
-function renderLimits(){$("#limTable").innerHTML=`<tr><th>Metric</th><th>LSL</th><th>USL</th></tr>`+template.limits.map((l,i)=>{const m=mInfo(l.metric);
-  return`<tr><td>${m[1]} (${m[2]})</td><td><input type="number" step="any" id="lsl-${i}" value="${l.lsl??""}"></td><td><input type="number" step="any" id="usl-${i}" value="${l.usl??""}"></td></tr>`}).join("")}
-$("#limSave").addEventListener("click",()=>{template.limits.forEach((l,i)=>{const a=$("#lsl-"+i).value,b=$("#usl-"+i).value;l.lsl=a===""?null:+a;l.usl=b===""?null:+b});log("Control limits saved to "+template.name+".","g")});
 
 /* ================= boot ================= */
 if(!(window.senson&&window.senson.desktop)){ // browser demo: simulated start-up messages
