@@ -46,7 +46,7 @@ header.top{grid-area:top;display:flex;align-items:center;gap:12px;flex-wrap:wrap
 nav{grid-area:nav;background:var(--panel);border-right:1px solid var(--line);padding:12px 0;overflow:auto}
 nav h3{margin:14px 16px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
 nav h3:first-child{margin-top:0}
-nav .op{--sc:var(--op)} nav .an{--sc:var(--an)} nav .cf{--sc:var(--cfg)}
+nav .home{--sc:var(--blue)} nav .dg{--sc:var(--pink)} nav .op{--sc:var(--op)} nav .an{--sc:var(--an)} nav .cf{--sc:var(--cfg)}
 nav h3{color:var(--sc)}
 nav button{display:block;width:100%;text-align:left;border:0;background:none;padding:6px 16px 6px 20px;cursor:pointer;border-left:3px solid transparent}
 nav button:hover{background:color-mix(in srgb,var(--sc) 10%,transparent)}
@@ -57,7 +57,7 @@ main{grid-area:main;overflow:auto;padding:16px;min-width:0}
 .log{max-height:100px;overflow:auto;padding:6px 12px;display:flex;flex-direction:column-reverse}
 .log div{white-space:pre-wrap}
 .log .w{color:var(--warn)} .log .e{color:var(--bad)} .log .g{color:var(--good)}
-#v-mc,#v-viewer,#v-manual{--pc:var(--op)} #v-gonogo,#v-spc,#v-matchan,#v-profile,#v-chamber,#v-interp{--pc:var(--an)} #v-recipe,#v-tagging,#v-template,#v-limits{--pc:var(--cfg)}
+#v-mc,#v-viewer,#v-amc,#v-home{--pc:var(--op)} #v-autocal{--pc:var(--pink)} #v-gonogo,#v-spc,#v-matchan,#v-profile,#v-chamber,#v-interp{--pc:var(--an)} #v-recipe,#v-tagging,#v-template,#v-limits{--pc:var(--cfg)}
 .view{display:flex;flex-direction:column;gap:14px;max-width:1280px}
 .view>h1{margin:0;font-size:20px;font-weight:600;color:var(--pc);text-wrap:balance}
 .view>p.lede{margin:-8px 0 0;color:var(--muted);max-width:72ch}
@@ -175,6 +175,24 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
 .openmap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px 14px;text-align:center;flex:1}
 .openmap .disc{width:120px;height:120px;border-radius:50%;background:conic-gradient(from 200deg,#5b2a86,#2d55c8,#25a8c8,#3fbf5a,#e8d84a,#f08a2c,#c8322b,#5b2a86);opacity:.85}
 
+/* ---- launcher ---- */
+.launch{max-width:860px}
+.launch .menubar{border-bottom:1px solid var(--line)}
+.lgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px 22px;padding:16px;background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--an) 5%,var(--panel)) 0 6px,var(--panel) 6px 12px)}
+.lgroup{border:1px solid var(--line);border-radius:6px;padding:10px 10px 12px;background:color-mix(in srgb,var(--panel) 80%,transparent)}
+.lgroup h2{margin:-22px 0 8px;display:inline-block;background:var(--panel);padding:0 6px;font-size:19px;font-weight:600;color:var(--gc)}
+.lgroup.op{--gc:var(--op)} .lgroup.an{--gc:var(--an)} .lgroup.cf{--gc:var(--cfg)} .lgroup.dg{--gc:var(--pink)}
+.lbtn{display:block;width:100%;text-align:left;margin-top:8px;padding:10px 14px 26px;border:1px solid color-mix(in srgb,var(--gc) 55%,#000 10%);border-radius:5px;cursor:pointer;font-weight:700;font-size:15px;color:#fff;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--gc) 70%,#fff 30%),var(--gc) 55%,color-mix(in srgb,var(--gc) 75%,#000 25%));text-shadow:0 1px 1px rgba(0,0,0,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+.lbtn:hover{filter:brightness(1.08)}
+.lfoot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding:12px 16px;background:#14182c;color:#e8eaf6}
+.lfoot b{font-size:18px;letter-spacing:.04em} .lfoot span{font-size:12px;text-decoration:underline;color:#b8c0ff}
+/* ---- AM FOUP monitor ---- */
+.state{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:12px;padding:2px 10px;border-radius:999px;background:var(--panel2)}
+.state.idle{color:var(--muted)} .state.run{background:var(--warn-soft);color:var(--warn)} .state.up{background:color-mix(in srgb,var(--blue) 15%,var(--panel));color:var(--blue)} .state.done{background:var(--good-soft);color:var(--good)}
+.mini{height:6px;background:var(--panel2);border-radius:3px;overflow:hidden;width:120px;display:inline-block;vertical-align:middle}
+.mini i{display:block;height:100%;background:linear-gradient(90deg,var(--op),var(--an))}
+@media (max-width:700px){.lgrid{grid-template-columns:1fr}}
 /* ---- dialogs ---- */
 .modal{position:fixed;inset:0;background:rgba(10,15,20,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
 .dlg{background:var(--panel);border-radius:8px;max-width:640px;width:100%;max-height:90%;overflow:auto;border-top:4px solid var(--op);box-shadow:0 20px 50px rgba(0,0,0,.3)}
@@ -210,10 +228,13 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
   </header>
 
   <nav aria-label="Main menu">
+    <button class="home" data-v="home" aria-current="page" style="font-weight:600">Tools Launcher</button>
     <h3 class="op">Operations</h3>
     <button class="op" data-v="viewer">Data Viewer</button>
-    <button class="op" data-v="manual">Manual Mission</button>
-    <button class="op" data-v="mc" aria-current="page">Mission Controller</button>
+    <button class="op" data-v="amc">Mission Controller</button>
+    <button class="op" data-v="mc">Manual Mission</button>
+    <h3 class="dg">Diagnostics</h3>
+    <button class="dg" data-v="autocal">TrackTune AutoCal</button>
     <h3 class="an">Analysis</h3>
     <button class="an" data-v="gonogo">Go/No-Go</button>
     <button class="an" data-v="spc">SPC Charting</button>
@@ -319,7 +340,7 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
             </div></div>
           <div><button data-menu="win" aria-expanded="false">Window</button>
             <div class="menu" id="m-win" hidden>
-              <button data-act="gomc">Mission Controller</button>
+              <button data-act="gohome">Tools Launcher</button><button data-act="gomc">Manual Mission</button>
               <button data-act="gointerp">Data Interpolator</button>
             </div></div>
         </div>
@@ -388,15 +409,69 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
       <input type="file" id="csvFile" accept=".csv,.txt" hidden>
     </section>
 
-    <!-- MANUAL MISSION -->
-    <section class="view" id="v-manual" hidden>
-      <h1>Manual Mission</h1>
-      <p class="lede">Downloads a mission the wafer already recorded, for example one started from the automation station. The data is tagged and opened in Data Viewer.</p>
+    <!-- ================= LAUNCHER ================= -->
+    <section class="view" id="v-home">
+      <div class="win launch">
+        <div class="win-title"><i class="ico"></i>Tools Launcher</div>
+        <div class="menubar" id="launchMenu">
+          <div><button data-menu="ltools" aria-expanded="false">Tools</button>
+            <div class="menu" id="m-ltools" hidden><button data-lact="db">Database/Connection Manager…</button></div></div>
+          <div><button data-menu="lhelp" aria-expanded="false">Help</button>
+            <div class="menu" id="m-lhelp" hidden><button data-lact="about">About this demo</button><button data-lact="steps">Calibration steps</button></div></div>
+        </div>
+        <div class="lgrid">
+          <div class="lgroup op"><h2>Operations</h2>
+            <button class="lbtn" data-go="viewer">Data Viewer</button>
+            <button class="lbtn" data-go="amc">Mission Controller</button>
+            <button class="lbtn" data-go="mc">Manual Mission</button></div>
+          <div class="lgroup dg"><h2>Diagnostics</h2>
+            <button class="lbtn" data-go="autocal">TrackTune AutoCal</button></div>
+          <div class="lgroup an"><h2>Analysis</h2>
+            <button class="lbtn" data-go="gonogo">Go/NoGo</button>
+            <button class="lbtn" data-go="spc">SPC Charting</button>
+            <button class="lbtn" data-go="matchan">Match Analyzer</button>
+            <button class="lbtn" data-go="profile">Profile Comparison</button>
+            <button class="lbtn" data-go="chamber">Chamber Matching</button>
+            <button class="lbtn" data-go="interp">Data Interpolator</button></div>
+          <div class="lgroup cf"><h2>Configuration</h2>
+            <button class="lbtn" data-go="recipe">Recipe Flow Configurator</button>
+            <button class="lbtn" data-go="tagging">Modify Mission Tagging</button>
+            <button class="lbtn" data-go="template">Create a Template</button>
+            <button class="lbtn" data-go="limits">Create a Control Limit</button></div>
+        </div>
+        <div class="lfoot"><b>Calibration Tools</b><span>Backup FlexLife database at Tools → Database/Connection Manager</span></div>
+      </div>
+      <p class="note">Manual Mission (laptop + SensArray FOUP) opens the Manual Mission Controller. Mission Controller monitors data collection on automation (AM) FOUPs, which is a different feature.</p>
+    </section>
+
+    <!-- ================= MISSION CONTROLLER (AM FOUP monitor) ================= -->
+    <section class="view" id="v-amc" hidden>
+      <div class="win">
+        <div class="win-title"><i class="ico"></i>Mission Controller · automation FOUP monitor</div>
+        <div class="mc-top"><div class="recipe">Monitors missions on automation (AM) FOUPs started by the fab host (MES) or the automation Web UI. Results upload to the automation controller and Go/NoGo is reported back to the host.</div>
+          <div class="mc-btns"><button class="btn" id="amcPause">Pause monitor</button></div></div>
+        <div class="banner" id="amcBanner">Monitoring 3 AM FOUPs</div>
+        <div class="tablewrap"><table id="amcTable"></table></div>
+      </div>
+      <div class="panel"><h2>Recent results</h2><div class="tablewrap"><table id="amcResults"></table></div>
+        <p class="note">Layout is my guess: I haven't seen the real Mission Controller screen yet. Send a screenshot and I'll match it.</p></div>
+    </section>
+
+    <!-- ================= TRACKTUNE AUTOCAL ================= -->
+    <section class="view" id="v-autocal" hidden>
+      <h1>TrackTune AutoCal</h1>
+      <p class="lede">Suggests heater zone offsets so the wafer reaches setpoint evenly. Measured steady-state temperature is averaged per zone, then offset = setpoint − zone mean.</p>
       <div class="panel">
-        <div class="row"><label for="manChamber">Chamber the wafer ran in</label>
-          <select id="manChamber"><option>PM1</option><option>PM2</option><option selected>PM3</option><option>PM4</option></select>
-          <button class="btn primary" id="btnManual">Download from wafer</button></div>
-        <p class="note">In this demo the wafer memory holds a simulated mission for the selected chamber.</p>
+        <div class="row"><label for="acRun">Run</label><select id="acRun"></select>
+          <label for="acSet">Setpoint</label><input type="number" id="acSet" value="92.5" step="0.1"><span class="hint">°C</span>
+          <label for="acZones">Zones</label><select id="acZones"><option value="3">3 rings (center / middle / edge)</option><option value="4">4 quadrants</option><option value="7">center + 6 sectors</option></select>
+          <label for="acGain">Gain</label><input type="number" id="acGain" value="1" step="0.1" min="0" max="2" style="width:70px"></div>
+      </div>
+      <div class="grid2">
+        <div class="panel"><h2>Zone map</h2><canvas id="cvAc" style="height:330px"></canvas></div>
+        <div class="panel"><h2>Suggested offsets</h2><div class="tablewrap"><table id="acTable"></table></div>
+          <div class="tiles" id="acTiles" style="margin-top:12px"></div>
+          <p class="note">My assumption of what AutoCal does, based on the name. Tell me what the real screen shows and I'll match it.</p></div>
       </div>
     </section>
 
@@ -731,7 +806,7 @@ let view="mc";
 function show(v){view=v;$$("nav button").forEach(b=>{if(b.dataset.v===v)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
   $$("main>section").forEach(s=>s.hidden=s.id!=="v-"+v);closeMenus();render();}
 $$("nav button").forEach(b=>b.addEventListener("click",()=>show(b.dataset.v)));
-function render(){({mc:renderMC,viewer:renderViewer,gonogo:renderGNG,spc:renderSPC,matchan:renderMatrix,profile:renderProfile,chamber:renderChamber,interp:renderInterp,recipe:renderFlow,tagging:renderTags,template:renderTpl,limits:renderLimits}[view]||(()=>{}))()}
+function render(){({home:()=>{},amc:renderAMC,autocal:renderAutoCal,mc:renderMC,viewer:renderViewer,gonogo:renderGNG,spc:renderSPC,matchan:renderMatrix,profile:renderProfile,chamber:renderChamber,interp:renderInterp,recipe:renderFlow,tagging:renderTags,template:renderTpl,limits:renderLimits}[view]||(()=>{}))()}
 let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(render,120)});
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",render);
 new MutationObserver(render).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
@@ -848,11 +923,55 @@ function askTags(run,isNew){const t=run.tags;
     if(isNew){run.meta.example=false;setCurrent(run,`My run (${run.meta.hwid} · ${t.chamber})`)}log(`Data tagged: ${t.tool} · ${t.chamber} · ${t.recipe}`,"g");show("viewer")}}])}
 function setCurrent(run,name){current=run;currentName=name;dv.excluded=new Set();dv.start=null;$("#runText").textContent=name}
 
-/* ================= MANUAL MISSION (menu page) ================= */
-$("#btnManual").addEventListener("click",()=>{const ch=$("#manChamber").value,d=chamberDefs[ch];
-  log(`Manual mission download (${ch})…`);const run=simulate(Object.assign({},d,{tStart:100,dur:120,tOut:210,seed:d.seed+50,tags:{tool:"GTT483",chamber:ch,recipe:"Manual Mission"},
-    meta:{hwid:"103665HP",fabId:"00D73122KSD4",fw:"4.0.111",date:new Date().toLocaleString(),recipe:"Manual Mission downloaded from wafer memory"}}));
-  log("Download complete.","g");askTags(run,true)});
+/* ================= LAUNCHER ================= */
+$$(".lbtn").forEach(b=>b.addEventListener("click",()=>show(b.dataset.go)));
+$("#launchMenu").addEventListener("click",e=>{const m=e.target.closest("[data-menu]");if(m){e.stopPropagation();const el=$("#m-"+m.dataset.menu),open=el.hidden;closeMenus();if(open){el.hidden=false;m.setAttribute("aria-expanded","true")}return}
+  const a=e.target.closest("[data-lact]");if(!a)return;closeMenus();
+  if(a.dataset.lact==="db")dialog("Database/Connection Manager",`<div class="formgrid"><span>Database</span><b>FlexLife (local)</b><span>Last backup</span><b>not in demo</b><span>FOUP link</span><b>192.168.10.14 · ConnectionUp</b></div><p class="hint">On the real laptop, back up the FlexLife database here before updates.</p>`,[{label:"Close"},{label:"Back up now",primary:true,fn:()=>log("Database backup requested (demo, nothing written).","w")}]);
+  if(a.dataset.lact==="about")dialog("About this demo","<p>Independent demo of a wafer temperature-calibration workflow. Not KLA software. All data is simulated unless you open your own .csv in Data Viewer.</p>");
+  if(a.dataset.lact==="steps")dialog("Calibration steps",`<ol style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px"><li>Keep the laptop on its charger (charger is in the briefcase).</li><li>Connect the laptop to the SensArray FOUP. A connected wafer shows in the slot list, top-left of Manual Mission.</li><li>Open <b>Manual Mission</b>, pick the wafer, set acquisition time, sampling period, delay and start setting, then <b>Run Mission</b>.</li><li>When the wafer is back in the FOUP, use <b>Manual Mission Download</b> and wait for the download.</li><li>Tag the data once it is available.</li><li>In <b>Data Viewer</b>, File → Export to .csv and save under C:\\LAM SensArray.</li></ol>`)});
+
+/* ================= MISSION CONTROLLER (AM FOUP monitor) ================= */
+const STEPS=["Idle at station","Moving to tool","Mission running","Returning to station","Uploading data","Results ready"];
+const foups=[{id:"AF-01",station:"Station 1",tool:"GTT483",chamber:"PM3",wafer:"105139SE",step:2,p:40},
+  {id:"AF-02",station:"Station 1",tool:"GTT422",chamber:"PM6",wafer:"103665HP",step:4,p:70},
+  {id:"AF-03",station:"Station 2",tool:"GTT483",chamber:"PM1",wafer:"104208KA",step:0,p:0}];
+const amcResults=[];let amcTimer=null,amcPaused=false;
+function amcTick(){if(amcPaused)return;foups.forEach((f,i)=>{f.p+=[4,12,6,14,18,3][f.step]*(1+i*.15);if(f.p<100)return;f.p=0;
+  if(f.step===4){const d=chamberDefs[f.chamber]||chamberDefs.PM1;const run=simulate(Object.assign({},d,{seed:Math.floor(Math.random()*1e6),tags:{tool:f.tool,chamber:f.chamber,recipe:"AUTO-QUAL"},
+      meta:{hwid:f.wafer,date:new Date().toLocaleString(),recipe:`Automatic mission on ${f.wafer} (${f.id})`}}));
+    const e=evaluate(summarize(run));amcResults.unshift({f:{...f},run,go:e.go,time:new Date().toTimeString().slice(0,8)});amcResults.splice(8);
+    log(`AM FOUP ${f.id}: results uploaded for Wafer [${f.wafer}] · ${f.tool} ${f.chamber} · ${e.go?"GO":"NO-GO"}`,e.go?"g":"w")}
+  f.step=(f.step+1)%STEPS.length;if(f.step===1)log(`AM FOUP ${f.id}: host started mission on ${f.tool} ${f.chamber}`)});
+  if(view==="amc")renderAMC()}
+function renderAMC(){const cls=["idle","run","run","run","up","done"];
+  $("#amcTable").innerHTML=`<tr><th>AM FOUP</th><th>Station</th><th>Wafer HWID</th><th>Target</th><th>State</th><th>Progress</th></tr>`+foups.map(f=>`<tr><td><b>${f.id}</b></td><td>${f.station}</td><td>${f.wafer}</td><td>${f.tool} · ${f.chamber}</td><td><span class="state ${cls[f.step]}">${STEPS[f.step]}</span></td><td>${f.step?`<span class="mini"><i style="width:${Math.min(100,f.p).toFixed(0)}%"></i></span>`:"—"}</td></tr>`).join("");
+  $("#amcBanner").textContent=`Monitoring ${foups.length} AM FOUPs · ${foups.filter(f=>f.step===2).length} mission(s) running`;
+  $("#amcResults").innerHTML=`<tr><th>Time</th><th>AM FOUP</th><th>Wafer</th><th>Tool · Chamber</th><th>Go/NoGo</th><th></th></tr>`+(amcResults.length?amcResults.map((r,i)=>`<tr><td>${r.time}</td><td>${r.f.id}</td><td>${r.f.wafer}</td><td>${r.f.tool} · ${r.f.chamber}</td><td><span class="pill ${r.go?"go":"no"}">${r.go?"GO":"NO-GO"}</span></td><td><button class="btn" data-res="${i}">Open in Data Viewer</button></td></tr>`).join(""):`<tr><td colspan="6" class="hint">Waiting for the first upload. AF-02 is uploading now.</td></tr>`)}
+$("#amcResults").addEventListener("click",e=>{const b=e.target.closest("[data-res]");if(!b)return;const r=amcResults[+b.dataset.res];setCurrent(r.run,`${r.f.wafer} · ${r.f.chamber} (AM FOUP)`);show("viewer")});
+$("#amcPause").addEventListener("click",()=>{amcPaused=!amcPaused;$("#amcPause").textContent=amcPaused?"Resume monitor":"Pause monitor"});
+amcTimer=setInterval(amcTick,1000);
+
+/* ================= TRACKTUNE AUTOCAL ================= */
+function zoneOf(x,y,n){const r=Math.hypot(x,y)/R,a=(Math.atan2(y,x)+2*Math.PI)%(2*Math.PI);
+  if(n===3)return r<.35?0:r<.7?1:2;if(n===4)return Math.floor(a/(Math.PI/2));return r<.35?0:1+Math.floor(a/(Math.PI/3))}
+function zoneName(k,n){if(n===3)return["Center","Middle","Edge"][k];if(n===4)return["Q1 (upper right)","Q2 (upper left)","Q3 (lower left)","Q4 (lower right)"][k];return k?"Sector "+k:"Center"}
+function renderAutoCal(){fillRunSelect($("#acRun"),currentName);const run=allRuns()[$("#acRun").value],s=summarize(run),set=+$("#acSet").value,n=+$("#acZones").value,gain=+$("#acGain").value;
+  const vals=s.ssT||run.T[run.T.length-1],pts=run.ids.map(i=>{const q=byId(i)||{x:0,y:0};return[q.x,q.y]});
+  const zs=[...Array(n)].map(()=>[]);pts.forEach((p,i)=>zs[zoneOf(p[0],p[1],n)].push(vals[i]));
+  const rows=zs.map((v,k)=>{const m=v.length?avg(v):NaN;return{k,m,n:v.length,off:gain*(set-m)}});
+  const after=pts.map((p,i)=>{const z=rows[zoneOf(p[0],p[1],n)];return vals[i]+(isFinite(z.off)?z.off:0)});
+  const b=rowStats(vals),a=rowStats(after);
+  $("#acTable").innerHTML=`<tr><th>Zone</th><th class="n">Sensors</th><th class="n">Measured mean</th><th class="n">Offset to apply</th></tr>`+rows.map(r=>`<tr><td>${zoneName(r.k,n)}</td><td class="n">${r.n}</td><td class="n">${fmt(r.m,3)}</td><td class="n" style="color:${r.off>=0?"var(--bad)":"var(--blue)"};font-weight:600">${r.off>=0?"+":""}${fmt(r.off,3)} °C</td></tr>`).join("");
+  $("#acTiles").innerHTML=[["Mean now",b.mean],["Mean after (predicted)",a.mean],["Range now",b.range],["Range after (predicted)",a.range]].map(t=>`<div class="tile"><span>${t[0]}</span><b>${fmt(t[1],3)} <small style="font-size:12px;color:var(--muted)">°C</small></b></div>`).join("");
+  const c=$("#cvAc");if(!c.clientWidth)return;const{g,w,h}=setup(c),S=Math.min(w,h)/2-10,cx=w/2,cy=h/2,lo=Math.min(...rows.map(r=>r.off).filter(isFinite)),hi=Math.max(...rows.map(r=>r.off).filter(isFinite));
+  for(let y=-R;y<=R;y+=3)for(let x=-R;x<=R;x+=3){if(x*x+y*y>R*R)continue;const z=rows[zoneOf(x,y,n)];g.fillStyle=heat(hi-lo<1e-9?.5:(z.off-lo)/(hi-lo));g.fillRect(cx+x/R*S-2,cy-y/R*S-2,4.5,4.5)}
+  g.strokeStyle=css("--ink");g.lineWidth=1.2;g.beginPath();g.arc(cx,cy,S,0,7);g.stroke();
+  g.font="600 12px "+css("--mono");g.textAlign="center";g.textBaseline="middle";
+  rows.forEach(r=>{let px=0,py=0,c2=0;for(let y=-R;y<=R;y+=10)for(let x=-R;x<=R;x+=10){if(x*x+y*y>R*R)continue;if(zoneOf(x,y,n)===r.k){px+=x;py+=y;c2++}}
+    if(!c2)return;px/=c2;py/=c2;if(n===3&&r.k>0){px=0;py=-(r.k===1?.52:.85)*R}const t=(r.off>=0?"+":"")+r.off.toFixed(2);const tw=g.measureText(t).width;
+    g.fillStyle="rgba(255,255,255,.85)";g.fillRect(cx+px/R*S-tw/2-3,cy-py/R*S-9,tw+6,18);g.fillStyle="#111";g.fillText(t,cx+px/R*S,cy-py/R*S)})}
+["#acRun","#acSet","#acZones","#acGain"].forEach(x=>$(x).addEventListener("input",renderAutoCal));
 
 /* ================= DATA VIEWER ================= */
 const dv={excluded:new Set(),start:null,mapOpen:false,drawer:null,playing:null,tpl:null};
@@ -1003,7 +1122,7 @@ $("#menubar").addEventListener("click",e=>{const a=e.target.closest("[data-act]"
   openmap:openMap,
   radial:()=>{if(!dv.mapOpen)openMap();toggleDrawer("radial",true)},
   movie:()=>{if(!dv.mapOpen)openMap();toggleDrawer("movie",true)},
-  gomc:()=>show("mc"),gointerp:()=>show("interp")}[a.dataset.act]||(()=>{}))()});
+  gomc:()=>show("mc"),gohome:()=>show("home"),gointerp:()=>show("interp")}[a.dataset.act]||(()=>{}))()});
 function csvText(){const r=current,m=r.meta||{},lines=[];
   lines.push(`# Wafer HWID=${m.hwid||""}`,`# Fab Wafer ID=${m.fabId||""}`,`# Mission date=${m.date||""}`,`# Recipe=${m.recipe||""}`);
   Object.entries(r.tags).forEach(([k,v])=>lines.push(`# ${k}=${v}`));
@@ -1115,6 +1234,6 @@ log("Usage for Wafer [103665HP] = Total: 00:00:30, Remaining: 03:59:30, Limit: 0
 log("Wafer [103665HP] - Wafer Ready","g");
 log("Wafer [103665HP] - Voltage: 4.014V");
 log("Old Manual Mission file count is above the maximum limit in FOUP","w");
-show("mc");
+show("home");
 })();
 </script>
