@@ -1,0 +1,738 @@
+<title>Wafer Mission Controller Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: desktop instrument-software shell. Header, left menu, working pane, live status strip. Stacks on phones. */
+:root{
+  --bg:#e9edf1; --panel:#ffffff; --panel2:#f4f6f8; --ink:#16202a; --muted:#5a6775; --line:#d3d9e0; --grid:#e5e9ee;
+  --accent:#0b6e80; --accent-soft:#dcedf0; --on-accent:#ffffff;
+  --good:#2c7d3a; --good-soft:#e1f1e3; --warn:#9a6512; --warn-soft:#f6ecd9; --bad:#b8322a; --bad-soft:#f8e1df;
+  --mean:#16202a; --trace:rgba(11,110,128,.22);
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1318; --panel:#151c23; --panel2:#1b242d; --ink:#e2e8ee; --muted:#93a0ad; --line:#2a3540; --grid:#212b35;
+  --accent:#43b6ca; --accent-soft:#163740; --on-accent:#08161a;
+  --good:#5cc06d; --good-soft:#163222; --warn:#e0a640; --warn-soft:#3a2c12; --bad:#f06e62; --bad-soft:#3d1a17;
+  --mean:#e2e8ee; --trace:rgba(67,182,202,.22); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1318; --panel:#151c23; --panel2:#1b242d; --ink:#e2e8ee; --muted:#93a0ad; --line:#2a3540; --grid:#212b35;
+  --accent:#43b6ca; --accent-soft:#163740; --on-accent:#08161a;
+  --good:#5cc06d; --good-soft:#163222; --warn:#e0a640; --warn-soft:#3a2c12; --bad:#f06e62; --bad-soft:#3d1a17;
+  --mean:#e2e8ee; --trace:rgba(67,182,202,.22); color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.shell{height:100%;display:grid;grid-template-rows:auto 1fr auto;grid-template-columns:220px 1fr;grid-template-areas:"top top" "nav main" "status status"}
+header.top{grid-area:top;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{font-weight:600;letter-spacing:.01em}
+.brand small{font-weight:400;color:var(--muted);margin-left:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;border:1px solid var(--line);background:var(--panel2);white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.chip.ok .dot{background:var(--good)} .chip.run .dot{background:var(--warn)}
+.spacer{flex:1}
+nav{grid-area:nav;background:var(--panel);border-right:1px solid var(--line);padding:12px 0;overflow:auto}
+nav h3{margin:14px 16px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+nav h3:first-child{margin-top:0}
+nav button{display:block;width:100%;text-align:left;border:0;background:none;padding:6px 16px 6px 20px;cursor:pointer;border-left:3px solid transparent}
+nav button:hover{background:var(--panel2)}
+nav button[aria-current="page"]{border-left-color:var(--accent);background:var(--accent-soft);font-weight:500}
+main{grid-area:main;overflow:auto;padding:16px;min-width:0}
+.status{grid-area:status;background:var(--panel);border-top:1px solid var(--line);font-family:var(--mono);font-size:12px;display:grid;grid-template-columns:auto 1fr;min-height:0}
+.status .conn{padding:6px 12px;border-right:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.log{max-height:96px;overflow:auto;padding:6px 12px;display:flex;flex-direction:column-reverse}
+.log div{white-space:pre-wrap}
+.log .ts{color:var(--muted);margin-right:8px}
+.log .w{color:var(--warn)} .log .e{color:var(--bad)} .log .g{color:var(--good)}
+.view{display:flex;flex-direction:column;gap:14px;max-width:1200px}
+.view>h1{margin:0;font-size:20px;font-weight:600;text-wrap:balance}
+.view>p.lede{margin:-8px 0 0;color:var(--muted);max-width:70ch}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;min-width:0}
+.panel h2{margin:0 0 10px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--line);background:var(--panel);padding:6px 14px;border-radius:4px;cursor:pointer}
+.btn:hover:not(:disabled){border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:500}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.mc{display:grid;grid-template-columns:240px 1fr;gap:14px}
+.kv{display:grid;grid-template-columns:1fr auto;gap:6px 10px;font-size:13px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.bar{height:6px;background:var(--panel2);border-radius:3px;overflow:hidden;grid-column:1/-1;margin-top:-2px}
+.bar i{display:block;height:100%;background:var(--good)}
+.ready{margin-top:12px;padding:8px 10px;border-radius:4px;font-weight:500;font-size:13px}
+.ready.ok{background:var(--good-soft);color:var(--good)} .ready.run{background:var(--warn-soft);color:var(--warn)} .ready.bad{background:var(--bad-soft);color:var(--bad)}
+.settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+fieldset{border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin:0;min-width:0}
+legend{font-size:12px;font-weight:600;color:var(--muted);padding:0 4px;text-transform:uppercase;letter-spacing:.06em}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0}
+.row label{cursor:pointer}
+input[type=number],input[type=text],select{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:4px 6px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+input[type=number]{width:100px}
+.hint{font-size:12px;color:var(--muted)}
+.wafer-wrap{display:grid;grid-template-columns:minmax(0,420px) 1fr;gap:16px;align-items:start}
+svg.wafer{width:100%;max-width:420px;height:auto;display:block}
+.legend{display:flex;flex-direction:column;gap:8px;font-size:13px}
+.legend span{display:inline-flex;align-items:center;gap:8px}
+.sw{width:14px;height:14px;border-radius:50%;display:inline-block;border:2px solid var(--accent)}
+.sw.en{background:var(--accent)} .sw.dis{background:transparent} .sw.fac{background:var(--muted);border-color:var(--muted)}
+.progress{height:8px;background:var(--panel2);border-radius:4px;overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s linear}
+canvas{width:100%;display:block}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+td.n{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+th.n{text-align:right}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600}
+.pill.go{background:var(--good-soft);color:var(--good)} .pill.no{background:var(--bad-soft);color:var(--bad)}
+.verdict{font-size:28px;font-weight:600;padding:10px 16px;border-radius:6px;display:inline-block}
+.verdict.go{background:var(--good-soft);color:var(--good)} .verdict.no{background:var(--bad-soft);color:var(--bad)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.tile{background:var(--panel2);border-radius:4px;padding:8px 10px}
+.tile b{display:block;font-family:var(--mono);font-size:18px;font-weight:500;font-variant-numeric:tabular-nums}
+.tile span{font-size:12px;color:var(--muted)}
+.example{font-size:12px;color:var(--warn);font-weight:500}
+.scale{height:10px;border-radius:2px}
+.flow{display:flex;flex-direction:column;gap:6px}
+.flow .step{display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:center;background:var(--panel2);padding:6px 8px;border-radius:4px}
+.flow .step b{font-family:var(--mono);color:var(--muted)}
+.note{font-size:12px;color:var(--muted);max-width:75ch}
+@media (max-width:820px){
+  .shell{height:auto;grid-template-columns:1fr;grid-template-areas:"top" "nav" "main" "status"}
+  nav{border-right:0;border-bottom:1px solid var(--line);display:flex;overflow-x:auto;padding:6px 8px;gap:4px}
+  nav h3{display:none}
+  nav button{white-space:nowrap;width:auto;border-left:0;border-bottom:3px solid transparent;padding:6px 10px}
+  nav button[aria-current="page"]{border-bottom-color:var(--accent)}
+  .mc,.wafer-wrap{grid-template-columns:1fr}
+  .status{grid-template-columns:1fr} .status .conn{border-right:0;border-bottom:1px solid var(--line)}
+}
+@media (prefers-reduced-motion:reduce){.progress i{transition:none}}
+</style>
+
+<div class="shell">
+  <header class="top">
+    <div class="brand">Wafer Calibration Tools<small>independent demo · not KLA software</small></div>
+    <span class="chip ok" id="foupChip"><i class="dot"></i><span id="foupText">FOUP connected · Wafer FAB-0001</span></span>
+    <span class="spacer"></span>
+    <span class="chip" id="runChip"><i class="dot"></i><span id="runText">Example run loaded</span></span>
+  </header>
+
+  <nav aria-label="Main menu">
+    <h3>Operations</h3>
+    <button data-v="viewer">Data Viewer</button>
+    <button data-v="manual">Manual Mission</button>
+    <button data-v="mc" aria-current="page">Mission Controller</button>
+    <h3>Analysis</h3>
+    <button data-v="gonogo">Go/No-Go</button>
+    <button data-v="spc">SPC Charting</button>
+    <button data-v="matchan">Match Analyzer</button>
+    <button data-v="profile">Profile Comparison</button>
+    <button data-v="chamber">Chamber Matching</button>
+    <button data-v="interp">Data Interpolator</button>
+    <h3>Configuration</h3>
+    <button data-v="recipe">Recipe Flow Configurator</button>
+    <button data-v="tagging">Modify Mission Tagging</button>
+    <button data-v="template">Create a Template</button>
+    <button data-v="limits">Create a Control Limit</button>
+  </nav>
+
+  <main id="main">
+    <!-- MISSION CONTROLLER -->
+    <section class="view" id="v-mc">
+      <div class="toolbar">
+        <h1 style="margin:0;font-size:20px;font-weight:600">Mission Controller</h1>
+        <span class="spacer"></span>
+        <button class="btn primary" id="btnRun">Run Mission</button>
+        <button class="btn" id="btnCancel" disabled>Cancel Mission</button>
+        <button class="btn" id="btnDownload" disabled>Manual Mission Download</button>
+      </div>
+      <div class="mc">
+        <aside class="panel">
+          <h2>Wafer status</h2>
+          <dl class="kv" id="statusKV"></dl>
+          <div class="ready ok" id="readyBox">Ready for mission</div>
+        </aside>
+        <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+          <div class="panel">
+            <div class="settings">
+              <fieldset>
+                <legend>Acquisition time</legend>
+                <div class="row"><input type="radio" name="acq" id="acqMax" value="max"><label for="acqMax">Max length</label> <span class="hint" id="maxLenText"></span></div>
+                <div class="row"><input type="radio" name="acq" id="acqCustom" value="custom" checked><label for="acqCustom">Custom</label>
+                  <input type="number" id="acqSec" value="300" min="1" step="10"> <span class="hint">s</span></div>
+              </fieldset>
+              <fieldset>
+                <legend>Sampling</legend>
+                <div class="row"><label for="period">Sampling period</label> <input type="number" id="period" value="1.000" min="0.25" step="0.25"> <span class="hint">s</span></div>
+                <div class="row"><label for="delay">Delay time</label> <input type="number" id="delay" value="0" min="0" step="1"> <span class="hint">s</span></div>
+              </fieldset>
+              <fieldset>
+                <legend>Start setting</legend>
+                <div class="row"><input type="radio" name="start" id="stImm" value="imm" checked><label for="stImm">Start immediately</label></div>
+                <div class="row"><input type="radio" name="start" id="stDelay" value="delay"><label for="stDelay">Start after delay</label></div>
+                <div class="row"><input type="radio" name="start" id="stTemp" value="temp"><label for="stTemp">Start at temperature</label>
+                  <input type="number" id="trigTemp" value="40" step="1" style="width:70px"> <span class="hint">°C</span></div>
+                <div class="hint">With a temperature start, the delay counts after the trigger.</div>
+              </fieldset>
+            </div>
+            <div style="margin-top:12px" id="progWrap" hidden>
+              <div class="row" style="justify-content:space-between"><span id="progLabel">Recording</span><span class="hint" id="progTime"></span></div>
+              <div class="progress"><i id="progBar"></i></div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2>Sensor map</h2>
+            <div class="wafer-wrap">
+              <svg class="wafer" id="waferSvg" viewBox="-165 -165 330 330" role="img" aria-label="Wafer sensor map"></svg>
+              <div class="legend">
+                <span><i class="sw en"></i>Enabled <b id="cntEn" style="font-family:var(--mono)"></b></span>
+                <span><i class="sw dis"></i>Disabled <b id="cntDis" style="font-family:var(--mono)"></b></span>
+                <span><i class="sw fac"></i>Factory disabled <b id="cntFac" style="font-family:var(--mono)"></b></span>
+                <p class="hint" style="margin:6px 0 0;max-width:30ch">Click a sensor to enable or disable it. Factory-disabled sensors are locked. Fewer sensors give a longer max length.</p>
+                <div class="toolbar"><button class="btn" id="btnAllOn">Enable all</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DATA VIEWER -->
+    <section class="view" id="v-viewer" hidden>
+      <h1>Data Viewer</h1>
+      <p class="lede" id="viewerLede"></p>
+      <div class="tiles" id="viewerTiles"></div>
+      <div class="panel"><h2>Temperature vs time · every sensor, mean, min and max</h2><canvas id="cvTrace" style="height:300px"></canvas></div>
+      <div class="grid2">
+        <div class="panel"><h2>Wafer at time</h2>
+          <div class="row"><input type="range" id="scrub" min="0" max="100" value="100" style="flex:1"><span class="hint" id="scrubT" style="font-family:var(--mono)"></span></div>
+          <canvas id="cvDots" style="height:300px"></canvas></div>
+        <div class="panel"><h2>Spread across the wafer vs time</h2><canvas id="cvSpread" style="height:300px"></canvas>
+          <p class="note">Range is max − min. 3σ is three times the standard deviation across enabled sensors.</p></div>
+      </div>
+    </section>
+
+    <!-- MANUAL MISSION -->
+    <section class="view" id="v-manual" hidden>
+      <h1>Manual Mission</h1>
+      <p class="lede">Downloads a mission the wafer already recorded, for example one started from the automation station or another laptop. The data is tagged and opened in Data Viewer.</p>
+      <div class="panel">
+        <div class="row"><label for="manChamber">Chamber the wafer ran in</label>
+          <select id="manChamber"><option>PM1</option><option selected>PM2</option><option>PM3</option><option>PM4</option></select>
+          <button class="btn primary" id="btnManual">Download from wafer</button></div>
+        <p class="note">In this demo the wafer memory holds a simulated mission for the selected chamber.</p>
+      </div>
+    </section>
+
+    <!-- GO / NO-GO -->
+    <section class="view" id="v-gonogo" hidden>
+      <h1>Go/No-Go</h1>
+      <p class="lede">Each run is reduced to a few metrics and checked against the active template's control limits. GO only when every metric is inside its limits.</p>
+      <div class="panel">
+        <div class="row"><label for="gngRun">Run</label><select id="gngRun"></select><span class="hint" id="gngTemplate"></span></div>
+        <div id="gngVerdict" style="margin:8px 0"></div>
+        <div class="tablewrap"><table id="gngTable"></table></div>
+      </div>
+      <div class="panel"><h2>All runs</h2><div class="tablewrap"><table id="gngAll"></table></div></div>
+    </section>
+
+    <!-- SPC -->
+    <section class="view" id="v-spc" hidden>
+      <h1>SPC Charting</h1>
+      <p class="lede">Individuals chart, one point per qualification run. Limits come from the first 10 runs (baseline). Points that break a Western Electric rule are marked.</p>
+      <div class="panel">
+        <div class="row"><label for="spcMetric">Metric</label><select id="spcMetric"></select>
+          <label for="spcLsl">LSL</label><input type="number" id="spcLsl" step="0.1">
+          <label for="spcUsl">USL</label><input type="number" id="spcUsl" step="0.1"></div>
+        <canvas id="cvSpc" style="height:320px"></canvas>
+      </div>
+      <div class="grid2">
+        <div class="panel"><h2>Chart limits</h2><dl class="kv" id="spcKV"></dl></div>
+        <div class="panel"><h2>Rule violations</h2><div id="spcRules"></div></div>
+      </div>
+    </section>
+
+    <!-- MATCH ANALYZER -->
+    <section class="view" id="v-matchan" hidden>
+      <h1>Match Analyzer</h1>
+      <p class="lede">RMS temperature difference between every pair of runs, after lining up their start times. Lower is a closer match.</p>
+      <div class="panel"><div class="tablewrap"><table id="matrix"></table></div></div>
+    </section>
+
+    <!-- PROFILE COMPARISON -->
+    <section class="view" id="v-profile" hidden>
+      <h1>Profile Comparison</h1>
+      <div class="panel">
+        <div class="row"><label for="pcA">Test</label><select id="pcA"></select><label for="pcB">Reference</label><select id="pcB"></select>
+          <input type="checkbox" id="pcAlign" checked><label for="pcAlign">Align start time</label></div>
+        <div class="tiles" id="pcTiles" style="margin:10px 0"></div>
+        <canvas id="cvProfile" style="height:280px"></canvas>
+      </div>
+      <div class="panel"><h2>Difference, test − reference (wafer mean)</h2><canvas id="cvDelta" style="height:200px"></canvas></div>
+    </section>
+
+    <!-- CHAMBER MATCHING -->
+    <section class="view" id="v-chamber" hidden>
+      <h1>Chamber Matching</h1>
+      <p class="lede">Every chamber compared with the reference chamber. A chamber matches when the RMS difference and the worst steady-state sensor difference are both within tolerance.</p>
+      <div class="panel">
+        <div class="row"><label for="cmRef">Reference</label><select id="cmRef"></select>
+          <label for="cmRms">RMS tol</label><input type="number" id="cmRms" value="1.5" step="0.1"><span class="hint">°C</span>
+          <label for="cmSens">Sensor tol</label><input type="number" id="cmSens" value="2.0" step="0.1"><span class="hint">°C</span></div>
+        <div class="tablewrap"><table id="cmTable"></table></div>
+      </div>
+      <div class="panel"><h2>Wafer-mean profiles</h2><canvas id="cvCm" style="height:280px"></canvas></div>
+    </section>
+
+    <!-- INTERPOLATOR -->
+    <section class="view" id="v-interp" hidden>
+      <h1>Data Interpolator</h1>
+      <p class="lede">Steady-state temperature at each sensor, filled in across the whole wafer.</p>
+      <div class="panel">
+        <div class="row"><label for="ipRun">Run</label><select id="ipRun"></select>
+          <label for="ipMethod">Method</label><select id="ipMethod"><option value="tps">Thin-plate spline</option><option value="idw">Inverse distance</option></select>
+          <input type="checkbox" id="ipDots" checked><label for="ipDots">Show sensors</label></div>
+      </div>
+      <div class="grid2">
+        <div class="panel"><canvas id="cvMap" style="height:380px"></canvas>
+          <div class="row" style="margin-top:8px"><span class="hint" id="scaleMin" style="font-family:var(--mono)"></span><div class="scale" id="scaleBar" style="flex:1"></div><span class="hint" id="scaleMax" style="font-family:var(--mono)"></span></div></div>
+        <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+          <div class="panel"><h2>Map statistics</h2><div class="tiles" id="ipTiles"></div></div>
+          <div class="panel"><h2>Radial profile · center to edge</h2><canvas id="cvRadial" style="height:200px"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RECIPE FLOW -->
+    <section class="view" id="v-recipe" hidden>
+      <h1>Recipe Flow Configurator</h1>
+      <p class="lede">The route the sensor wafer follows through the tool, and which mission settings it uses.</p>
+      <div class="panel">
+        <div class="flow" id="flow"></div>
+        <div class="row" style="margin-top:10px"><input type="text" id="flowNew" placeholder="e.g. PM2 · Bake 350 °C 180 s" style="flex:1;min-width:0"><button class="btn" id="flowAdd">Add step</button></div>
+      </div>
+    </section>
+
+    <!-- TAGGING -->
+    <section class="view" id="v-tagging" hidden>
+      <h1>Modify Mission Tagging</h1>
+      <p class="lede">Tags decide how a run is grouped for SPC, matching and Go/No-Go.</p>
+      <div class="panel"><div class="settings" id="tagForm"></div>
+        <div class="toolbar" style="margin-top:10px"><button class="btn primary" id="tagSave">Save tags</button></div></div>
+    </section>
+
+    <!-- TEMPLATE -->
+    <section class="view" id="v-template" hidden>
+      <h1>Create a Template</h1>
+      <p class="lede">A template is a named set of metrics checked on every run. Limits can be computed from known-good baseline runs as mean ± k·σ.</p>
+      <div class="panel">
+        <div class="row"><label for="tplName">Template name</label><input type="text" id="tplName" value="PM 350 °C qualification"></div>
+        <div class="row"><label for="tplK">Limits from baseline: mean ±</label><input type="number" id="tplK" value="3" step="0.5" style="width:70px"><span>σ</span></div>
+        <div id="tplMetrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 12px;margin:8px 0"></div>
+        <button class="btn primary" id="tplBuild">Create template from 10 baseline runs</button>
+      </div>
+    </section>
+
+    <!-- CONTROL LIMITS -->
+    <section class="view" id="v-limits" hidden>
+      <h1>Create a Control Limit</h1>
+      <p class="lede">Edit the lower and upper limits of the active template. Leave a box empty for a one-sided limit.</p>
+      <div class="panel"><div class="tablewrap"><table id="limTable"></table></div>
+        <div class="toolbar" style="margin-top:10px"><button class="btn primary" id="limSave">Save limits</button></div></div>
+    </section>
+  </main>
+
+  <footer class="status">
+    <div class="conn" id="connInfo">IP 192.168.10.21 · FOUP COM3</div>
+    <div class="log" id="log" aria-live="polite"></div>
+  </footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmt=(v,d=2)=>v==null||!isFinite(v)?"—":Number(v).toFixed(d);
+
+/* ---------- log ---------- */
+function log(msg,cls){const d=document.createElement("div");const now=new Date();
+  d.innerHTML=`<span class="ts">${now.toTimeString().slice(0,8)}</span><span class="${cls||""}"></span>`;
+  d.lastChild.textContent=msg;$("#log").prepend(d);}
+
+/* ---------- random ---------- */
+function rng(seed){let a=seed>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gauss(r){let u=0;while(!u)u=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*r())}
+
+/* ---------- wafer layout: 65 sensors, 300 mm ---------- */
+const R=150, sensors=[];
+(function(){const rings=[1,8,16,24,16];let id=1;rings.forEach((c,k)=>{const r=k?140*k/4:0,off=k%2?Math.PI/c:0;
+  for(let j=0;j<c;j++){const th=off+2*Math.PI*j/c;sensors.push({id:id++,x:r*Math.cos(th),y:r*Math.sin(th),state:"en"})}})})();
+sensors[22].state="fac";sensors[64].state="fac";
+const byId=id=>sensors[id-1];
+const enabledIds=()=>sensors.filter(s=>s.state==="en").map(s=>s.id);
+
+/* ---------- simulation: first-order heating step per sensor ---------- */
+function underlying(o){ // returns f(absTime) -> row
+  const ids=o.ids, offs=ids.map(i=>{const s=byId(i);return o.bowl*(s.x*s.x+s.y*s.y)/(R*R)+o.tilt*s.x/R});
+  return (t,r)=>{const rise=t>=o.tOn?1-Math.exp(-(t-o.tOn)/o.tau):0;return offs.map(of=>o.T0+rise*(o.Tset+of-o.T0)+o.noise*gauss(r))};
+}
+function simulate(o){
+  o=Object.assign({T0:25,Tset:350,tau:25,bowl:3,tilt:0,noise:.05,tOn:20,tStart:0,dur:300,period:1,seed:1,ids:enabledIds(),tags:{}},o);
+  const r=rng(o.seed),f=underlying(o),n=Math.floor(o.dur/o.period+1e-9)+1,t=new Float64Array(n),T=[];
+  for(let i=0;i<n;i++){t[i]=i*o.period;T.push(f(o.tStart+t[i],r))}
+  return {t,T,ids:o.ids.slice(),tags:Object.assign({},o.tags)};
+}
+
+/* ---------- metrics ---------- */
+function rowStats(row){const n=row.length;let s=0,mn=Infinity,mx=-Infinity;for(const v of row){s+=v;if(v<mn)mn=v;if(v>mx)mx=v}
+  const m=s/n;let q=0;for(const v of row)q+=(v-m)*(v-m);const sd=n>1?Math.sqrt(q/(n-1)):0;
+  return {mean:m,min:mn,max:mx,range:mx-mn,sigma:sd,three:3*sd,nonu:100*3*sd/Math.abs(m)}}
+function steadyWindow(t,y,win=10,maxSlope=.05,maxStd=.2){
+  const n=y.length,dt=t[1]-t[0],w=Math.max(3,Math.round(win/dt)+1);if(n<w)return null;
+  const st=new Uint8Array(n);
+  for(let i=0;i+w<=n;i++){let mt=0,my=0;for(let k=i;k<i+w;k++){mt+=t[k];my+=y[k]}mt/=w;my/=w;
+    let sxy=0,sxx=0,syy=0;for(let k=i;k<i+w;k++){const a=t[k]-mt,b=y[k]-my;sxy+=a*b;sxx+=a*a;syy+=b*b}
+    if(Math.abs(sxy/sxx)<=maxSlope&&Math.sqrt(syy/w)<=maxStd)for(let k=i;k<i+w;k++)st[k]=1}
+  const segs=[];let s=-1;for(let i=0;i<=n;i++){if(i<n&&st[i]){if(s<0)s=i}else if(s>=0){segs.push([s,i-1]);s=-1}}
+  if(!segs.length)return null;
+  let best=segs[0],bv=-1;for(const g of segs){let m=0;for(let k=g[0];k<=g[1];k++)m+=y[k];m/=g[1]-g[0]+1;const d=Math.abs(m-y[0]);if(d>bv){bv=d;best=g}}
+  return [t[best[0]],t[best[1]]];
+}
+function crossing(t,y,level,rising){for(let i=0;i<y.length;i++){if(rising?y[i]>=level:y[i]<=level){if(!i)return t[0];
+  return t[i-1]+(level-y[i-1])*(t[i]-t[i-1])/(y[i]-y[i-1])}}return null}
+function transient(t,y,Tss,band=1){
+  const T0=y[0],step=Tss-T0,rising=step>=0;let rise=null;
+  if(Math.abs(step)>1e-9){const a=crossing(t,y,T0+.1*step,rising),b=crossing(t,y,T0+.9*step,rising);if(a!=null&&b!=null)rise=b-a}
+  let peak=rising?Math.max(...y):Math.min(...y);let over=Math.abs(step)>1e-9?Math.max(0,100*(peak-Tss)/step):0;
+  let last=-1;for(let i=0;i<y.length;i++)if(Math.abs(y[i]-Tss)>band)last=i;
+  const settle=last<0?t[0]:last===y.length-1?null:t[last+1];
+  let ramp=0;for(let i=1;i<y.length;i++)ramp=Math.max(ramp,Math.abs((y[i]-y[i-1])/(t[i]-t[i-1])));
+  let tau=null;if(Math.abs(step)>1e-9){let sx=0,sy=0,sxx=0,sxy=0,n=0;for(let i=0;i<y.length;i++){const f=(Tss-y[i])/step;
+    if(f>.05&&f<.95){const x=t[i]-t[0],l=Math.log(f);sx+=x;sy+=l;sxx+=x*x;sxy+=x*l;n++}}
+    if(n>=3){const sl=(n*sxy-sx*sy)/(n*sxx-sx*sx);if(sl<0)tau=-1/sl}}
+  return {rise,over,settle,ramp,tau,T0};
+}
+function meanTrace(run){return run.T.map(r=>r.reduce((a,b)=>a+b,0)/r.length)}
+function summarize(run){
+  if(run._sum)return run._sum;
+  const m=meanTrace(run),ss=steadyWindow(run.t,m),out={};
+  let Tss=null,tEnd=run.t[run.t.length-1];
+  if(ss){const per=run.ids.map(()=>0);let c=0;for(let i=0;i<run.t.length;i++)if(run.t[i]>=ss[0]&&run.t[i]<=ss[1]){run.T[i].forEach((v,j)=>per[j]+=v);c++}
+    const ssT=per.map(v=>v/c),st=rowStats(ssT);
+    Object.assign(out,{ss_start:ss[0],ss_end:ss[1],ss_mean:st.mean,ss_min:st.min,ss_max:st.max,ss_range:st.range,ss_three_sigma:st.three,ss_nonu:st.nonu,ssT});
+    Tss=st.mean;tEnd=ss[1];}
+  const k=run.t.findIndex(v=>v>tEnd);const tt=Array.from(k<0?run.t:run.t.slice(0,k)),yy=k<0?m:m.slice(0,k);
+  if(Tss==null){const q=Math.max(3,Math.floor(m.length/10));Tss=m.slice(-q).reduce((a,b)=>a+b,0)/q}
+  const tr=transient(tt,yy,Tss);
+  Object.assign(out,{rise_time:tr.rise,overshoot:tr.over,settling_time:tr.settle,ramp_rate:tr.ramp,time_constant:tr.tau,start_mean:tr.T0,mean:m});
+  run._sum=out;return out;
+}
+const METRICS=[
+  ["ss_mean","Steady-state mean","°C",2],["ss_range","Steady-state range","°C",2],["ss_three_sigma","Steady-state 3σ","°C",2],
+  ["ss_nonu","Non-uniformity (3σ/mean)","%",3],["rise_time","Rise time 10–90 %","s",1],["settling_time","Settling time ±1 °C","s",1],
+  ["overshoot","Overshoot","%",2],["ramp_rate","Max ramp rate","°C/s",2],["time_constant","Time constant τ","s",1]];
+const mInfo=k=>METRICS.find(m=>m[0]===k);
+
+/* ---------- interpolation ---------- */
+function solve(A,b){const n=b.length;for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(A[r][c])>Math.abs(A[p][c]))p=r;
+  [A[c],A[p]]=[A[p],A[c]];[b[c],b[p]]=[b[p],b[c]];for(let r=c+1;r<n;r++){const f=A[r][c]/A[c][c];if(!f)continue;for(let k=c;k<n;k++)A[r][k]-=f*A[c][k];b[r]-=f*b[c]}}
+  const x=new Float64Array(n);for(let r=n-1;r>=0;r--){let s=b[r];for(let k=r+1;k<n;k++)s-=A[r][k]*x[k];x[r]=s/A[r][r]}return x}
+const phi=r=>r>0?r*r*Math.log(r):0;
+function interpolator(pts,vals,method){
+  const P=pts.map(p=>[p[0]/R,p[1]/R]),n=P.length;
+  if(method==="idw")return(x,y)=>{x/=R;y/=R;let sw=0,sv=0;for(let j=0;j<n;j++){const d=Math.hypot(x-P[j][0],y-P[j][1]);if(d<1e-9)return vals[j];const w=1/(d*d);sw+=w;sv+=w*vals[j]}return sv/sw};
+  const N=n+3,A=[],b=new Float64Array(N);for(let i=0;i<N;i++)A.push(new Float64Array(N));
+  for(let i=0;i<n;i++){for(let j=0;j<n;j++)A[i][j]=phi(Math.hypot(P[i][0]-P[j][0],P[i][1]-P[j][1]));
+    A[i][n]=A[n][i]=1;A[i][n+1]=A[n+1][i]=P[i][0];A[i][n+2]=A[n+2][i]=P[i][1];b[i]=vals[i]}
+  const w=solve(A,b);
+  return(x,y)=>{x/=R;y/=R;let s=w[n]+w[n+1]*x+w[n+2]*y;for(let j=0;j<n;j++)s+=w[j]*phi(Math.hypot(x-P[j][0],y-P[j][1]));return s};
+}
+
+/* ---------- SPC ---------- */
+function imr(x){let mr=0;for(let i=1;i<x.length;i++)mr+=Math.abs(x[i]-x[i-1]);mr/=x.length-1;const c=x.reduce((a,b)=>a+b,0)/x.length,s=mr/1.128;
+  return{center:c,sigma:s,ucl:c+3*s,lcl:c-3*s,mr,mrucl:3.267*mr}}
+function weRules(x,c,s){const z=x.map(v=>s>0?(v-c)/s:0),out={1:new Set,2:new Set,3:new Set,4:new Set};
+  for(let i=0;i<x.length;i++){if(Math.abs(z[i])>3)out[1].add(i);
+    for(const sd of[1,-1]){const q=k=>sd*z[k];
+      if(i>=2&&[i-2,i-1,i].filter(k=>q(k)>2).length>=2&&q(i)>2)out[2].add(i);
+      if(i>=4&&[i-4,i-3,i-2,i-1,i].filter(k=>q(k)>1).length>=4&&q(i)>1)out[3].add(i);
+      if(i>=7){let ok=true;for(let k=i-7;k<=i;k++)if(q(k)<=0)ok=false;if(ok)out[4].add(i)}}}
+  return out}
+function capability(x,lsl,usl){const n=x.length,m=x.reduce((a,b)=>a+b,0)/n,s=Math.sqrt(x.reduce((a,b)=>a+(b-m)**2,0)/(n-1));
+  const cp=lsl!=null&&usl!=null?(usl-lsl)/(6*s):null;const sides=[];if(usl!=null)sides.push((usl-m)/(3*s));if(lsl!=null)sides.push((m-lsl)/(3*s));
+  return{m,s,cp,cpk:sides.length?Math.min(...sides):null}}
+
+/* ---------- matching ---------- */
+function interp1(xq,x,y){const out=new Float64Array(xq.length);let j=0;for(let i=0;i<xq.length;i++){const v=xq[i];
+  while(j<x.length-2&&x[j+1]<v)j++;const a=x[j],b=x[j+1];const f=b===a?0:Math.min(1,Math.max(0,(v-a)/(b-a)));out[i]=y[j]+f*(y[j+1]-y[j])}return out}
+function compare(A,B,align=true,maxLag=30){
+  const ids=A.ids.filter(i=>B.ids.includes(i)),ja=ids.map(i=>A.ids.indexOf(i)),jb=ids.map(i=>B.ids.indexOf(i));
+  const dt=Math.min(A.t[1]-A.t[0],B.t[1]-B.t[0]),ma=meanTrace(A),mb=meanTrace(B);
+  let lag=0;
+  if(align){const t0=Math.max(A.t[0],B.t[0]),t1=Math.min(A.t[A.t.length-1],B.t[B.t.length-1]),g=[];for(let v=t0;v<t1;v+=dt)g.push(v);
+    const a=interp1(g,A.t,ma),b=interp1(g,B.t,mb),da=[],db=[];for(let i=1;i<g.length;i++){da.push(a[i]-a[i-1]);db.push(b[i]-b[i-1])}
+    const n=Math.round(maxLag/dt);let best=-Infinity,bk=0;for(let k=-n;k<=n;k++){let c=0;for(let i=0;i<da.length;i++){const j=i-k;if(j>=0&&j<db.length)c+=da[i]*db[j]}if(c>best){best=c;bk=k}}lag=bk*dt}
+  const tb=Array.from(B.t,v=>v+lag),t0=Math.max(A.t[0],tb[0]),t1=Math.min(A.t[A.t.length-1],tb[tb.length-1]),t=[];for(let v=t0;v<=t1+dt/2;v+=dt)t.push(v);
+  const sa=summarize(A);let s2=0,sm=0,mx=0,cnt=0;const dm=new Float64Array(t.length),ssd=ids.map(()=>0);let ssc=0;
+  const colsA=ja.map(j=>interp1(t,A.t,A.T.map(r=>r[j]))),colsB=jb.map(j=>interp1(t,tb,B.T.map(r=>r[j])));
+  for(let i=0;i<t.length;i++){let rowd=0;const inSS=sa.ss_start!=null&&t[i]>=sa.ss_start&&t[i]<=sa.ss_end;if(inSS)ssc++;
+    for(let j=0;j<ids.length;j++){const d=colsA[j][i]-colsB[j][i];s2+=d*d;sm+=d;mx=Math.max(mx,Math.abs(d));cnt++;rowd+=d;if(inSS)ssd[j]+=d}dm[i]=rowd/ids.length}
+  const am=interp1(t,A.t,ma),bm=interp1(t,tb,mb);
+  const mean=a=>a.reduce((x,y)=>x+y,0)/a.length,maa=mean(am),mbb=mean(bm);let sab=0,saa=0,sbb=0;for(let i=0;i<t.length;i++){sab+=(am[i]-maa)*(bm[i]-mbb);saa+=(am[i]-maa)**2;sbb+=(bm[i]-mbb)**2}
+  const worst=ssc?Math.max(...ssd.map(v=>Math.abs(v/ssc))):null;
+  return{lag,t,am,bm,dm,offset:sm/cnt,rms:Math.sqrt(s2/cnt),maxAbs:mx,r:sab/Math.sqrt(saa*sbb),worst};
+}
+
+/* ---------- charts ---------- */
+function setup(c){const dpr=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);const g=c.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);return{g,w,h}}
+function ticks(a,b,n=5){const span=b-a||1,step0=span/n,mag=Math.pow(10,Math.floor(Math.log10(step0))),e=step0/mag,step=(e<1.5?1:e<3?2:e<7?5:10)*mag;
+  const out=[];for(let v=Math.ceil(a/step)*step;v<=b+1e-9;v+=step)out.push(+v.toFixed(10));return out}
+function chart(c,series,o={}){
+  if(!c.clientWidth)return;const{g,w,h}=setup(c),L=52,Rr=o.right||14,T=10,B=30;
+  let xmin=Infinity,xmax=-Infinity,ymin=Infinity,ymax=-Infinity;
+  for(const s of series){for(let i=0;i<s.x.length;i++){xmin=Math.min(xmin,s.x[i]);xmax=Math.max(xmax,s.x[i]);if(isFinite(s.y[i])){ymin=Math.min(ymin,s.y[i]);ymax=Math.max(ymax,s.y[i])}}}
+  for(const hl of o.hlines||[]){ymin=Math.min(ymin,hl.y);ymax=Math.max(ymax,hl.y)}
+  if(o.ymin!=null)ymin=o.ymin;const pad=(ymax-ymin)*.06||1;ymin-=pad;ymax+=pad;
+  const X=v=>L+(v-xmin)/(xmax-xmin||1)*(w-L-Rr),Y=v=>T+(1-(v-ymin)/(ymax-ymin))*(h-T-B);
+  g.font="11px "+css("--mono");g.fillStyle=css("--muted");g.strokeStyle=css("--grid");g.lineWidth=1;
+  for(const v of ticks(ymin,ymax)){const y=Math.round(Y(v))+.5;g.beginPath();g.moveTo(L,y);g.lineTo(w-Rr,y);g.stroke();g.textAlign="right";g.textBaseline="middle";g.fillText(+v.toFixed(3),L-6,y)}
+  for(const v of ticks(xmin,xmax,6)){const x=Math.round(X(v))+.5;g.beginPath();g.moveTo(x,T);g.lineTo(x,h-B);g.stroke();g.textAlign="center";g.textBaseline="top";g.fillText(+v.toFixed(3),x,h-B+6)}
+  if(o.xlabel){g.textAlign="right";g.fillText(o.xlabel,w-Rr,h-12)}
+  if(o.ylabel){g.save();g.translate(11,T+(h-T-B)/2);g.rotate(-Math.PI/2);g.textAlign="center";g.textBaseline="middle";g.fillText(o.ylabel,0,0);g.restore()}
+  for(const hl of o.hlines||[]){const y=Y(hl.y);g.strokeStyle=hl.color;g.setLineDash(hl.dash||[5,4]);g.beginPath();g.moveTo(L,y);g.lineTo(w-Rr,y);g.stroke();g.setLineDash([]);
+    if(hl.label){g.fillStyle=hl.color;g.textAlign="left";g.textBaseline="bottom";g.fillText(hl.label,L+4,y-2)}}
+  for(const s of series){g.strokeStyle=s.color;g.lineWidth=s.width||1.5;g.beginPath();let st=false;
+    for(let i=0;i<s.x.length;i++){if(!isFinite(s.y[i])){st=false;continue}const x=X(s.x[i]),y=Y(s.y[i]);st?g.lineTo(x,y):g.moveTo(x,y);st=true}g.stroke();
+    if(s.points){for(let i=0;i<s.x.length;i++){g.fillStyle=s.pointColor?s.pointColor(i):s.color;g.beginPath();g.arc(X(s.x[i]),Y(s.y[i]),s.r||3.5,0,7);g.fill()}}}
+  if(o.legend){let x=L+8;g.textBaseline="middle";g.textAlign="left";for(const s of o.legend){g.fillStyle=s.color;g.fillRect(x,T+6,14,3);g.fillStyle=css("--ink");g.fillText(s.label,x+18,T+8);x+=g.measureText(s.label).width+36}}
+}
+function heat(v){ // sequential cool->hot
+  const stops=[[0,[49,54,149]],[.25,[69,117,180]],[.5,[116,173,209]],[.62,[254,224,144]],[.8,[244,109,67]],[1,[165,0,38]]];
+  v=Math.max(0,Math.min(1,v));for(let i=1;i<stops.length;i++)if(v<=stops[i][0]){const[a,ca]=stops[i-1],[b,cb]=stops[i],f=(v-a)/(b-a);return`rgb(${ca.map((c,k)=>Math.round(c+f*(cb[k]-c))).join(",")})`}return"rgb(165,0,38)"}
+
+/* ---------- state ---------- */
+const status={id:"FAB-0001",fw:"2.1.90",battery:82,remain:120.0,total:380.4,cycles:211};
+const MEMORY=2000000; // ASSUMPTION: total sensor readings the wafer can store
+const chamberDefs={PM1:{Tset:350,seed:11},PM2:{Tset:351,seed:12},PM3:{Tset:346,bowl:6,tOn:28,seed:13},PM4:{Tset:350.4,tilt:1.6,seed:14}};
+const runs={}; // name -> run
+for(const[k,d]of Object.entries(chamberDefs))runs[k]=simulate(Object.assign({tags:{tool:"ETCH-07",chamber:k,recipe:"QUAL-350",operator:"demo"}},d));
+let current=simulate({seed:5,Tset:350.3,tags:{tool:"ETCH-07",chamber:"PM1",recipe:"QUAL-350",operator:"demo",example:"yes"}});
+let currentName="Example run (PM1)";
+const baseline=[];for(let i=0;i<10;i++)baseline.push(simulate({Tset:350+.3*Math.sin(i*1.3),seed:100+i}));
+const history=baseline.concat([0,1,2,3,4,5,6,7,8].map(i=>simulate({Tset:350.15+i*.09,bowl:3+i*.12,seed:200+i})));
+let template={name:"PM 350 °C qualification",limits:[]};
+function buildTemplate(keys,k){template.limits=keys.map(key=>{const v=baseline.map(r=>summarize(r)[key]).filter(x=>x!=null),m=v.reduce((a,b)=>a+b,0)/v.length,s=Math.sqrt(v.reduce((a,b)=>a+(b-m)**2,0)/(v.length-1));
+  return{metric:key,lsl:+(m-k*s).toFixed(3),usl:+(m+k*s).toFixed(3)}})}
+buildTemplate(["ss_mean","ss_range","ss_three_sigma","rise_time"],3);
+template.limits.find(l=>l.metric==="ss_range").lsl=null;template.limits.find(l=>l.metric==="ss_three_sigma").lsl=null;
+function allRuns(){const o={};o[currentName]=current;for(const k in runs)o[k]=runs[k];return o}
+
+/* ---------- navigation ---------- */
+let view="mc";
+function show(v){view=v;$$("nav button").forEach(b=>b.toggleAttribute("aria-current",b.dataset.v===v)&&b.setAttribute("aria-current","page"));
+  $$("main>section").forEach(s=>s.hidden=s.id!=="v-"+v);render();}
+$$("nav button").forEach(b=>b.addEventListener("click",()=>show(b.dataset.v)));
+function render(){({mc:renderMC,viewer:renderViewer,gonogo:renderGNG,spc:renderSPC,matchan:renderMatrix,profile:renderProfile,chamber:renderChamber,interp:renderInterp,recipe:renderFlow,tagging:renderTags,template:renderTpl,limits:renderLimits}[view]||(()=>{}))()}
+let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(render,120)});
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",render);
+new MutationObserver(render).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+
+/* ---------- Mission Controller ---------- */
+let mission=null; // {state, ...}
+function settings(){return{period:+$("#period").value,delay:+$("#delay").value,acqMax:$("#acqMax").checked,acq:+$("#acqSec").value,
+  start:document.querySelector("input[name=start]:checked").value,trig:+$("#trigTemp").value}}
+function maxLen(){const n=enabledIds().length,p=+$("#period").value||1;const mem=n?MEMORY/n*p:0,bat=status.battery/100*40*3600;return Math.min(mem,bat)}
+const hms=s=>{s=Math.round(s);return`${Math.floor(s/3600)}:${String(Math.floor(s%3600/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`};
+function renderStatus(){const kv=[["Battery",status.battery.toFixed(0)+" %"],null,["Usage time remaining",status.remain.toFixed(1)+" h"],["Usage time total",status.total.toFixed(1)+" h"],
+  ["Temperature cycles",status.cycles],["Wafer FW version",status.fw],["Fab Wafer ID",status.id],["Enabled sensors",enabledIds().length+" / 65"]];
+  $("#statusKV").innerHTML=kv.map(r=>r?`<dt>${r[0]}</dt><dd>${r[1]}</dd>`:`<div class="bar"><i style="width:${status.battery}%"></i></div>`).join("");}
+function renderWafer(){const svg=$("#waferSvg");const ac=css("--accent"),mu=css("--muted"),ln=css("--line"),pn=css("--panel2");
+  let h=`<circle cx="0" cy="0" r="150" fill="${pn}" stroke="${ln}" stroke-width="1.5"/><path d="M-6 150 a6 6 0 0 1 12 0" fill="${css("--panel")}" stroke="${ln}"/>`;
+  h+=`<line x1="-150" y1="0" x2="150" y2="0" stroke="${ln}" stroke-dasharray="2 4"/><line x1="0" y1="-150" x2="0" y2="150" stroke="${ln}" stroke-dasharray="2 4"/>`;
+  for(const s of sensors){const cx=s.x.toFixed(1),cy=(-s.y).toFixed(1);
+    if(s.state==="fac")h+=`<g><title>Sensor ${s.id} · factory disabled</title><circle cx="${cx}" cy="${cy}" r="7" fill="${mu}"/><path d="M${cx-4} ${cy-4}l8 8m0 -8l-8 8" stroke="${pn}" stroke-width="1.6" transform="translate(0 0)"/></g>`;
+    else h+=`<g class="sn" data-id="${s.id}" style="cursor:pointer" tabindex="0" role="button" aria-label="Sensor ${s.id} ${s.state==="en"?"enabled":"disabled"}"><title>Sensor ${s.id} · ${s.state==="en"?"enabled":"disabled"} · (${s.x.toFixed(0)}, ${s.y.toFixed(0)}) mm</title><circle cx="${cx}" cy="${cy}" r="7" fill="${s.state==="en"?ac:"transparent"}" stroke="${ac}" stroke-width="2"/></g>`}
+  h+=`<text x="0" y="163" text-anchor="middle" font-size="9" fill="${mu}" font-family="${css("--mono")}">notch · 300 mm</text>`;
+  svg.innerHTML=h;
+  // fix factory X path (numbers as strings)
+  svg.querySelectorAll("g:not(.sn) path").forEach((p,i)=>{});
+  const c={en:0,dis:0,fac:0};sensors.forEach(s=>c[s.state]++);$("#cntEn").textContent=c.en;$("#cntDis").textContent=c.dis;$("#cntFac").textContent=c.fac;}
+function toggleSensor(id){if(mission&&mission.state!=="done")return log("Sensors cannot change while a mission is running.","w");
+  const s=byId(id);if(s.state==="fac")return;s.state=s.state==="en"?"dis":"en";log(`Sensor ${id} ${s.state==="en"?"enabled":"disabled"}. Max length now ${hms(maxLen())}.`);renderMC()}
+$("#waferSvg").addEventListener("click",e=>{const g=e.target.closest(".sn");if(g)toggleSensor(+g.dataset.id)});
+$("#waferSvg").addEventListener("keydown",e=>{const g=e.target.closest(".sn");if(g&&(e.key==="Enter"||e.key===" ")){e.preventDefault();toggleSensor(+g.dataset.id)}});
+$("#btnAllOn").addEventListener("click",()=>{sensors.forEach(s=>{if(s.state==="dis")s.state="en"});log("All user-disabled sensors enabled.");renderMC()});
+["#period","#acqSec","#delay","#trigTemp"].forEach(s=>$(s).addEventListener("input",()=>{if(view==="mc")renderMC()}));
+$$("input[name=acq],input[name=start]").forEach(i=>i.addEventListener("change",renderMC));
+function renderMC(){renderStatus();renderWafer();$("#maxLenText").textContent=hms(maxLen());
+  const busy=mission&&["armed","waiting","delay","recording"].includes(mission.state);
+  $("#btnRun").disabled=!!busy;$("#btnCancel").disabled=!busy;$("#btnDownload").disabled=!(mission&&mission.state==="done");
+  const box=$("#readyBox"),p=readinessProblems();
+  if(busy){box.className="ready run";box.textContent=({armed:"Mission armed · remove wafer to start",waiting:"Waiting for start trigger",delay:"Delay counting down",recording:"Recording"})[mission.state]}
+  else if(mission&&mission.state==="done"){box.className="ready run";box.textContent="Mission complete · download data"}
+  else if(p.length){box.className="ready bad";box.textContent="Not ready: "+p.join("; ")}
+  else{box.className="ready ok";box.textContent="Ready for mission"}}
+function readinessProblems(){const s=settings(),out=[];if(status.battery<20)out.push("battery below 20 %");
+  const len=s.acqMax?maxLen():s.acq;if(status.remain*3600<len)out.push("not enough usage time left");if(!enabledIds().length)out.push("no sensors enabled");return out}
+function validate(){const s=settings(),ml=maxLen();
+  if(!(s.period>0))return"Sampling period must be greater than 0.";if(s.delay<0)return"Delay time cannot be negative.";
+  if(!s.acqMax&&!(s.acq>0))return"Custom acquisition time must be greater than 0.";
+  if(!s.acqMax&&s.acq>ml)return`Custom acquisition time is longer than the max length (${hms(ml)}).`;
+  if(s.start==="temp"&&!isFinite(s.trig))return"Enter a trigger temperature.";const p=readinessProblems();if(p.length)return"Wafer not ready: "+p.join("; ")+".";return null}
+let timer=null;
+$("#btnRun").addEventListener("click",()=>{const err=validate();if(err){log(err,"e");return}
+  const s=settings(),ids=enabledIds(),acq=s.acqMax?maxLen():s.acq,shown=Math.min(acq,900);
+  // underlying event: wafer leaves FOUP at 0, enters chamber at 60 s, heats to 350
+  const def={T0:25,Tset:350.6,tau:24,bowl:3.2,tilt:.4,noise:.05,tOn:60,ids};const r=rng(Date.now()%1e6),f=underlying(def);
+  let start;if(s.start==="imm")start=0;else if(s.start==="delay")start=s.delay;else{let tt=0;const dt=.25;while(tt<4000&&Math.max(...f(tt,r))<s.trig)tt+=dt;start=tt>=4000?null:tt+s.delay}
+  if(start==null){log("Trigger temperature is never reached in this process. Lower it or use another start setting.","e");return}
+  mission={state:"armed",s,ids,acq,shown,start,def,tAbs:0};
+  log(`Mission sent to wafer ${status.id}: ${ids.length} sensors, period ${s.period.toFixed(3)} s, acquisition ${s.acqMax?"max length "+hms(acq):acq+" s"}, delay ${s.delay} s, start ${({imm:"immediately",delay:"after delay",temp:"at "+s.trig+" °C"})[s.start]}.`);
+  if(s.acqMax)log(`Demo note: only the first ${shown} s of the ${hms(acq)} max length are simulated.`,"w");
+  log("Remove the wafer from the FOUP to start.");renderMC();
+  $("#progWrap").hidden=false;$("#progBar").style.width="0";
+  const total=start+shown,speed=total/7;let last=performance.now();setTimeout(()=>{if(!mission||mission.state!=="armed")return;
+    log("Wafer removed from station.");mission.state=s.start==="temp"?"waiting":s.start==="delay"&&s.delay>0?"delay":"recording";
+    if(mission.state==="waiting")log(`Waiting for ${s.trig} °C.`);if(mission.state==="delay")log(`Delay ${s.delay} s counting down.`);
+    if(mission.state==="recording")log("Recording started.");renderMC();last=performance.now();
+    timer=setInterval(()=>{const now=performance.now();mission.tAbs+=(now-last)/1000*speed;last=now;const t=mission.tAbs;
+      if(mission.state==="waiting"&&t>=start-s.delay){log(`Trigger reached (${s.trig} °C).${s.delay?` Delay ${s.delay} s counting down.`:" Recording started."}`,"g");mission.state=s.delay?"delay":"recording";renderMC()}
+      if(mission.state==="delay"&&t>=start){log("Delay finished. Recording started.","g");mission.state="recording";renderMC()}
+      const rec=Math.max(0,Math.min(shown,t-start));$("#progBar").style.width=(100*Math.min(1,t/total))+"%";
+      $("#progLabel").textContent=({waiting:"Waiting for trigger",delay:"Delay",recording:"Recording"})[mission.state]||"";
+      $("#progTime").textContent=`${rec.toFixed(0)} / ${shown} s recorded`;
+      if(t>=total){clearInterval(timer);mission.state="done";$("#progLabel").textContent="Complete";log("Wafer returned to FOUP. Mission complete. Ready to download.","g");renderMC()}},100)},900);
+});
+$("#btnCancel").addEventListener("click",()=>{clearInterval(timer);mission=null;$("#progWrap").hidden=true;log("Mission cancelled. No data kept.","w");renderMC()});
+$("#btnDownload").addEventListener("click",()=>{const m=mission;const run=simulate(Object.assign({},m.def,{dur:m.shown,period:Math.max(m.s.period,m.shown/2500),tStart:m.start,seed:Date.now()%1e6,
+  tags:{tool:"ETCH-07",chamber:"PM1",recipe:"QUAL-350",operator:"demo",wafer:status.id}}));
+  const n=run.t.length*run.ids.length;log(`Downloading ${run.t.length} samples × ${run.ids.length} sensors (${n.toLocaleString()} readings)…`);
+  status.remain=Math.max(0,status.remain-m.acq/3600);status.total+=m.acq/3600;status.cycles++;status.battery=Math.max(0,status.battery-1);
+  setCurrent(run,"My run (PM1)");mission=null;$("#progWrap").hidden=true;log("Download complete. Tagged chamber PM1, recipe QUAL-350. Open Data Viewer to see it.","g");renderMC()});
+function setCurrent(run,name){current=run;currentName=name;$("#runText").textContent=name;$("#runChip").className="chip ok"}
+
+/* ---------- Manual mission ---------- */
+$("#btnManual").addEventListener("click",()=>{const ch=$("#manChamber").value;const d=chamberDefs[ch];
+  log(`Manual mission download from ${status.id} (${ch})…`);const run=simulate(Object.assign({},d,{seed:d.seed+50,tags:{tool:"ETCH-07",chamber:ch,recipe:"QUAL-350",operator:"demo",wafer:status.id}}));
+  setCurrent(run,`Manual download (${ch})`);log("Download complete. Opening Data Viewer.","g");show("viewer")});
+
+/* ---------- Data Viewer ---------- */
+function tilesHTML(s,keys){return keys.map(k=>{const m=mInfo(k);return`<div class="tile"><span>${m[1]}</span><b>${fmt(s[k],m[3])} <small style="font-size:12px;color:var(--muted)">${m[2]}</small></b></div>`}).join("")}
+function renderViewer(){const r=current,s=summarize(r);
+  $("#viewerLede").innerHTML=`${currentName} · ${r.ids.length} sensors · ${r.t.length} samples every ${(r.t[1]-r.t[0]).toFixed(3)} s · tags: ${Object.entries(r.tags).filter(([k])=>k!=="example").map(([k,v])=>k+"="+v).join(", ")}`+(r.tags.example?` · <span class="example">Example data. Run a mission to replace it.</span>`:"");
+  $("#viewerTiles").innerHTML=tilesHTML(s,["ss_mean","ss_range","ss_three_sigma","ss_nonu","rise_time","settling_time","overshoot","time_constant"]);
+  const tr=css("--trace"),ser=[];const x=Array.from(r.t);
+  for(let j=0;j<r.ids.length;j++)ser.push({x,y:r.T.map(row=>row[j]),color:tr,width:1});
+  const st=r.T.map(rowStats);ser.push({x,y:st.map(q=>q.max),color:css("--bad"),width:1.5},{x,y:st.map(q=>q.min),color:css("--accent"),width:1.5},{x,y:s.mean,color:css("--mean"),width:2});
+  chart($("#cvTrace"),ser,{xlabel:"time (s)",ylabel:"°C",legend:[{label:"max",color:css("--bad")},{label:"mean",color:css("--mean")},{label:"min",color:css("--accent")}]});
+  chart($("#cvSpread"),[{x,y:st.map(q=>q.range),color:css("--warn")},{x,y:st.map(q=>q.three),color:css("--accent")}],{xlabel:"time (s)",ylabel:"°C",ymin:0,legend:[{label:"range",color:css("--warn")},{label:"3σ",color:css("--accent")}]});
+  const sc=$("#scrub");sc.max=r.t.length-1;if(+sc.value>r.t.length-1)sc.value=r.t.length-1;drawDots();}
+function drawDots(){const r=current,i=+$("#scrub").value,c=$("#cvDots");if(!c.clientWidth)return;const{g,w,h}=setup(c);const row=r.T[i],st=rowStats(row);
+  $("#scrubT").textContent=`t = ${r.t[i].toFixed(1)} s · mean ${st.mean.toFixed(2)} °C`;
+  const sz=Math.min(w,h)/2-14,cx=w/2,cy=h/2,k=sz/R;g.fillStyle=css("--panel2");g.strokeStyle=css("--line");g.beginPath();g.arc(cx,cy,sz,0,7);g.fill();g.stroke();
+  const lo=st.min,hi=st.max+1e-9;g.font="9px "+css("--mono");g.textAlign="center";
+  r.ids.forEach((id,j)=>{const s=byId(id),x=cx+s.x*k,y=cy-s.y*k;g.fillStyle=heat((row[j]-lo)/(hi-lo));g.beginPath();g.arc(x,y,Math.max(5,sz*.045),0,7);g.fill();
+    if(sz>130){g.fillStyle=css("--ink");g.textBaseline="top";g.fillText(row[j].toFixed(1),x,y+sz*.05)}});
+  g.fillStyle=css("--muted");g.font="11px "+css("--mono");g.textAlign="left";g.textBaseline="top";g.fillText(`color: ${lo.toFixed(1)} → ${st.max.toFixed(1)} °C`,6,6)}
+$("#scrub").addEventListener("input",drawDots);
+
+/* ---------- Go/No-Go ---------- */
+function evaluate(s){const d=template.limits.map(l=>{const v=s[l.metric];const ok=v!=null&&(l.lsl==null||v>=l.lsl)&&(l.usl==null||v<=l.usl);return{...l,v,ok}});return{go:d.every(x=>x.ok),d}}
+function fillRunSelect(sel,keep){const names=Object.keys(allRuns());const prev=sel.value;sel.innerHTML=names.map(n=>`<option>${n}</option>`).join("");if(names.includes(prev))sel.value=prev;else if(keep)sel.value=keep}
+function renderGNG(){fillRunSelect($("#gngRun"),currentName);const run=allRuns()[$("#gngRun").value],res=evaluate(summarize(run));
+  $("#gngTemplate").textContent="Template: "+template.name;
+  $("#gngVerdict").innerHTML=`<span class="verdict ${res.go?"go":"no"}">${res.go?"GO":"NO-GO"}</span>`;
+  $("#gngTable").innerHTML=`<tr><th>Metric</th><th class="n">Value</th><th class="n">LSL</th><th class="n">USL</th><th>Result</th></tr>`+res.d.map(x=>{const m=mInfo(x.metric);
+    return`<tr><td>${m[1]} (${m[2]})</td><td class="n">${fmt(x.v,m[3])}</td><td class="n">${fmt(x.lsl,m[3])}</td><td class="n">${fmt(x.usl,m[3])}</td><td><span class="pill ${x.ok?"go":"no"}">${x.ok?"PASS":"FAIL"}</span></td></tr>`}).join("");
+  const rows=Object.entries(allRuns()).map(([n,r])=>{const e=evaluate(summarize(r));return`<tr><td>${n}</td><td><span class="pill ${e.go?"go":"no"}">${e.go?"GO":"NO-GO"}</span></td><td>${e.d.filter(x=>!x.ok).map(x=>mInfo(x.metric)[1]).join(", ")||"—"}</td></tr>`});
+  $("#gngAll").innerHTML=`<tr><th>Run</th><th>Result</th><th>Failed metrics</th></tr>`+rows.join("")}
+$("#gngRun").addEventListener("change",renderGNG);
+
+/* ---------- SPC ---------- */
+$("#spcMetric").innerHTML=METRICS.map(m=>`<option value="${m[0]}">${m[1]} (${m[2]})</option>`).join("");
+let spcSpec={ss_mean:[345,355]};
+function renderSPC(){const key=$("#spcMetric").value,m=mInfo(key);const pts=history.concat([current]).map(r=>summarize(r)[key]);
+  const ch=imr(pts.slice(0,10)),viol=weRules(pts,ch.center,ch.sigma);const spec=spcSpec[key]||[null,null];
+  if(document.activeElement!==$("#spcLsl"))$("#spcLsl").value=spec[0]??"";if(document.activeElement!==$("#spcUsl"))$("#spcUsl").value=spec[1]??"";
+  const bad=new Set();Object.values(viol).forEach(s=>s.forEach(i=>bad.add(i)));const x=pts.map((_,i)=>i+1);
+  const hl=[{y:ch.ucl,color:css("--bad"),label:"UCL "+ch.ucl.toFixed(m[3])},{y:ch.center,color:css("--muted"),label:"CL "+ch.center.toFixed(m[3]),dash:[]},{y:ch.lcl,color:css("--bad"),label:"LCL "+ch.lcl.toFixed(m[3])}];
+  chart($("#cvSpc"),[{x,y:pts,color:css("--accent"),width:1.5,points:true,pointColor:i=>bad.has(i)?css("--bad"):i===pts.length-1?css("--warn"):css("--accent")}],{hlines:hl,xlabel:"run #  (last point = current run)",ylabel:m[2]});
+  const cap=capability(pts.slice(0,10),spec[0],spec[1]);
+  $("#spcKV").innerHTML=[["Center line",fmt(ch.center,m[3])],["σ (MR̄ / 1.128)",fmt(ch.sigma,4)],["UCL = CL + 3σ",fmt(ch.ucl,m[3])],["LCL = CL − 3σ",fmt(ch.lcl,m[3])],["MR̄",fmt(ch.mr,4)],["MR UCL = 3.267·MR̄",fmt(ch.mrucl,4)],["Cp (baseline)",fmt(cap.cp,2)],["Cpk (baseline, target ≥ 1.33)",fmt(cap.cpk,2)]].map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join("");
+  const names={1:"1 point beyond 3σ",2:"2 of 3 beyond 2σ, same side",3:"4 of 5 beyond 1σ, same side",4:"8 in a row on one side"};
+  $("#spcRules").innerHTML=`<table><tr><th>Rule</th><th>Runs flagged</th></tr>${[1,2,3,4].map(k=>`<tr><td>${k}. ${names[k]}</td><td style="white-space:normal">${[...viol[k]].map(i=>"#"+(i+1)).join(", ")||"—"}</td></tr>`).join("")}</table>`}
+$("#spcMetric").addEventListener("change",renderSPC);
+["#spcLsl","#spcUsl"].forEach((s,i)=>$(s).addEventListener("input",()=>{const k=$("#spcMetric").value;spcSpec[k]=spcSpec[k]||[null,null];const v=$(s).value;spcSpec[k][i]=v===""?null:+v;renderSPC()}));
+
+/* ---------- Match Analyzer ---------- */
+function renderMatrix(){const R_=allRuns(),n=Object.keys(R_);const M=n.map(()=>n.map(()=>0));let mx=0;
+  for(let i=0;i<n.length;i++)for(let j=i+1;j<n.length;j++){M[i][j]=M[j][i]=compare(R_[n[i]],R_[n[j]]).rms;mx=Math.max(mx,M[i][j])}
+  $("#matrix").innerHTML=`<tr><th></th>${n.map(x=>`<th class="n">${x}</th>`).join("")}</tr>`+n.map((a,i)=>`<tr><th>${a}</th>${n.map((b,j)=>{const v=M[i][j],f=i===j?0:v/mx;
+    return`<td class="n" style="background:color-mix(in srgb, var(--bad) ${Math.round(f*45)}%, transparent)">${i===j?"—":v.toFixed(2)}</td>`}).join("")}</tr>`).join("")+
+    `<tr><td colspan="${n.length+1}" class="hint" style="white-space:normal">RMS difference in °C over every sensor and time sample.</td></tr>`}
+
+/* ---------- Profile comparison ---------- */
+function renderProfile(){const R_=allRuns();fillRunSelect($("#pcA"),"PM3");fillRunSelect($("#pcB"),"PM1");
+  const a=R_[$("#pcA").value],b=R_[$("#pcB").value],c=compare(a,b,$("#pcAlign").checked);
+  $("#pcTiles").innerHTML=[["Time shift applied",fmt(c.lag,1)+" s"],["Mean offset",fmt(c.offset)+" °C"],["RMS difference",fmt(c.rms)+" °C"],["Max |difference|",fmt(c.maxAbs)+" °C"],["Correlation r",fmt(c.r,4)],["Worst sensor at steady state",fmt(c.worst)+" °C"]]
+    .map(r=>`<div class="tile"><span>${r[0]}</span><b>${r[1]}</b></div>`).join("");
+  chart($("#cvProfile"),[{x:c.t,y:c.bm,color:css("--muted"),width:2},{x:c.t,y:c.am,color:css("--accent"),width:2}],{xlabel:"time (s, test axis)",ylabel:"°C",legend:[{label:"test",color:css("--accent")},{label:"reference",color:css("--muted")}]});
+  chart($("#cvDelta"),[{x:c.t,y:Array.from(c.dm),color:css("--warn"),width:1.5}],{hlines:[{y:0,color:css("--muted"),dash:[]}],xlabel:"time (s)",ylabel:"°C"})}
+["#pcA","#pcB","#pcAlign"].forEach(s=>$(s).addEventListener("change",renderProfile));
+
+/* ---------- Chamber matching ---------- */
+function renderChamber(){const R_=allRuns();fillRunSelect($("#cmRef"),"PM1");const refN=$("#cmRef").value,ref=R_[refN],rt=+$("#cmRms").value,st=+$("#cmSens").value;
+  const rows=Object.entries(R_).filter(([n])=>n!==refN).map(([n,r])=>{const c=compare(r,ref);return{n,c,ok:c.rms<=rt&&(c.worst==null||c.worst<=st)}}).sort((a,b)=>a.c.rms-b.c.rms);
+  $("#cmTable").innerHTML=`<tr><th>Chamber</th><th class="n">Time shift (s)</th><th class="n">Mean offset</th><th class="n">RMS diff</th><th class="n">Worst sensor</th><th class="n">r</th><th>Match</th></tr>`+
+    rows.map(x=>`<tr><td>${x.n}</td><td class="n">${fmt(x.c.lag,1)}</td><td class="n">${fmt(x.c.offset)}</td><td class="n">${fmt(x.c.rms)}</td><td class="n">${fmt(x.c.worst)}</td><td class="n">${fmt(x.c.r,4)}</td><td><span class="pill ${x.ok?"go":"no"}">${x.ok?"MATCH":"NO MATCH"}</span></td></tr>`).join("");
+  const cols=[css("--accent"),css("--warn"),css("--bad"),css("--good"),css("--muted")],ser=[],leg=[];
+  Object.entries(R_).forEach(([n,r],i)=>{const col=n===refN?css("--mean"):cols[i%cols.length];ser.push({x:Array.from(r.t),y:summarize(r).mean,color:col,width:n===refN?2.5:1.5});leg.push({label:n.replace(/ \(.*/,""),color:col})});
+  chart($("#cvCm"),ser,{xlabel:"time (s)",ylabel:"°C",legend:leg})}
+["#cmRef","#cmRms","#cmSens"].forEach(s=>$(s).addEventListener("input",renderChamber));
+
+/* ---------- Interpolator ---------- */
+function renderInterp(){fillRunSelect($("#ipRun"),currentName);const run=allRuns()[$("#ipRun").value],s=summarize(run);
+  const vals=s.ssT||run.T[run.T.length-1],pts=run.ids.map(i=>[byId(i).x,byId(i).y]),f=interpolator(pts,vals,$("#ipMethod").value);
+  const c=$("#cvMap");if(!c.clientWidth)return;const{g,w,h}=setup(c),sz=Math.min(w,h)/2-10,cx=w/2,cy=h/2,step=3,grid=[];
+  let lo=Infinity,hi=-Infinity;for(let y=-R;y<=R;y+=step)for(let x=-R;x<=R;x+=step){if(x*x+y*y>R*R)continue;const v=f(x,y);grid.push([x,y,v]);lo=Math.min(lo,v);hi=Math.max(hi,v)}
+  const k=sz/R,px=step*k+1;for(const[x,y,v]of grid){g.fillStyle=heat((v-lo)/(hi-lo||1));g.fillRect(cx+x*k-px/2,cy-y*k-px/2,px,px)}
+  g.strokeStyle=css("--line");g.lineWidth=1.5;g.beginPath();g.arc(cx,cy,sz,0,7);g.stroke();
+  if($("#ipDots").checked){g.strokeStyle="#ffffff";g.fillStyle="rgba(0,0,0,.55)";for(const p of pts){g.beginPath();g.arc(cx+p[0]*k,cy-p[1]*k,2.5,0,7);g.fill();g.stroke()}}
+  $("#scaleMin").textContent=lo.toFixed(2)+" °C";$("#scaleMax").textContent=hi.toFixed(2)+" °C";
+  $("#scaleBar").style.background=`linear-gradient(90deg,${[0,.2,.4,.6,.8,1].map(v=>heat(v)).join(",")})`;
+  const z=grid.map(q=>q[2]),st=rowStats(z);const r2=pts.map(p=>Math.hypot(p[0],p[1]));const edge=vals.filter((_,i)=>r2[i]>=.8*R),cen=vals.filter((_,i)=>r2[i]<=.2*R);
+  const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
+  $("#ipTiles").innerHTML=[["Map mean",st.mean,"°C"],["Map range",st.range,"°C"],["Map 3σ",st.three,"°C"],["Center → edge",avg(edge)-avg(cen),"°C"]].map(r=>`<div class="tile"><span>${r[0]}</span><b>${(r[0]==="Center → edge"&&r[1]>0?"+":"")+fmt(r[1])} <small style="font-size:12px;color:var(--muted)">${r[2]}</small></b></div>`).join("");
+  const nb=14,sums=new Float64Array(nb),cnt=new Float64Array(nb);for(const[x,y,v]of grid){const b=Math.min(nb-1,Math.floor(Math.hypot(x,y)/R*nb));sums[b]+=v;cnt[b]++}
+  chart($("#cvRadial"),[{x:[...Array(nb)].map((_,i)=>(i+.5)*R/nb),y:[...sums].map((v,i)=>v/cnt[i]),color:css("--accent"),width:2,points:true,r:3}],{xlabel:"radius (mm)",ylabel:"°C"})}
+["#ipRun","#ipMethod","#ipDots"].forEach(s=>$(s).addEventListener("change",renderInterp));
+
+/* ---------- Configuration ---------- */
+const flow=["FOUP load port · read wafer ID","Transfer to PM1","PM1 · Process QUAL-350 · 350 °C · 180 s","Cool station · 60 s","Return to FOUP · download mission"];
+function renderFlow(){$("#flow").innerHTML=flow.map((s,i)=>`<div class="step"><b>${i+1}</b><span>${s.replace(/</g,"&lt;")}</span><button class="btn" data-del="${i}" aria-label="Remove step ${i+1}">Remove</button></div>`).join("")}
+$("#flow").addEventListener("click",e=>{const b=e.target.closest("[data-del]");if(b){flow.splice(+b.dataset.del,1);renderFlow()}});
+$("#flowAdd").addEventListener("click",()=>{const v=$("#flowNew").value.trim();if(!v)return;flow.push(v);$("#flowNew").value="";renderFlow();log("Recipe flow step added: "+v)});
+const TAGS=["tool","chamber","recipe","operator","wafer","lot"];
+function renderTags(){$("#tagForm").innerHTML=`<p class="hint" style="grid-column:1/-1;margin:0">Editing tags of: <b>${currentName}</b></p>`+TAGS.map(t=>`<div class="row"><label for="tag-${t}" style="width:70px">${t}</label><input type="text" id="tag-${t}" value="${(current.tags[t]||"").replace(/"/g,"&quot;")}" style="flex:1;min-width:0"></div>`).join("")}
+$("#tagSave").addEventListener("click",()=>{TAGS.forEach(t=>{const v=$("#tag-"+t).value.trim();if(v)current.tags[t]=v;else delete current.tags[t]});log("Tags saved for "+currentName+".","g")});
+function renderTpl(){const on=new Set(template.limits.map(l=>l.metric));$("#tplMetrics").innerHTML=METRICS.map(m=>`<label class="row" style="margin:2px 0"><input type="checkbox" id="tm-${m[0]}" value="${m[0]}" ${on.has(m[0])?"checked":""}>${m[1]}</label>`).join("")}
+$("#tplBuild").addEventListener("click",()=>{const keys=METRICS.map(m=>m[0]).filter(k=>$("#tm-"+k).checked);if(!keys.length){log("Pick at least one metric for the template.","e");return}
+  template.name=$("#tplName").value.trim()||"Untitled template";buildTemplate(keys,+$("#tplK").value||3);log(`Template "${template.name}" created with ${keys.length} metrics from 10 baseline runs.`,"g");show("limits")});
+function renderLimits(){$("#limTable").innerHTML=`<tr><th>Metric</th><th>LSL</th><th>USL</th></tr>`+template.limits.map((l,i)=>{const m=mInfo(l.metric);
+  return`<tr><td>${m[1]} (${m[2]})</td><td><input type="number" step="any" id="lsl-${i}" value="${l.lsl??""}"></td><td><input type="number" step="any" id="usl-${i}" value="${l.usl??""}"></td></tr>`}).join("")}
+$("#limSave").addEventListener("click",()=>{template.limits.forEach((l,i)=>{const a=$("#lsl-"+i).value,b=$("#usl-"+i).value;l.lsl=a===""?null:+a;l.usl=b===""?null:+b});log("Control limits saved to "+template.name+".","g")});
+
+/* ---------- boot ---------- */
+log("SensArray-style demo started. All data is simulated.");
+log("FOUP detected on COM3. Wafer FAB-0001 found, firmware 2.1.90.","g");
+log("Wafer ready for mission.");
+show("mc");
+})();
+</script>
