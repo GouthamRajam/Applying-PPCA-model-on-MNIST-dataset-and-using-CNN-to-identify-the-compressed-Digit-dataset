@@ -624,12 +624,21 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
             <canvas id="cvWvH" style="height:200px"></canvas>
           </div>
         </div>
-        <div class="wv-spatial">
-          <div><div class="wv-sec">Spatial statistics · center-to-edge</div>
-            <div class="row" style="margin:0"><label for="wvR0">Radius</label><input type="number" id="wvR0" value="75" min="0" max="150" step="5" style="width:64px"><span>mm</span></div>
-            <p class="hint" style="margin:4px 0 0">Sites inside the radius form the inner region, the rest the outer region.</p></div>
-          <div><div class="wv-sec">Inner region stats (r ≤ radius)</div><div class="wvst" id="wvIn"></div></div>
-          <div><div class="wv-sec">Outer region stats (r > radius)</div><div class="wvst" id="wvOut"></div></div>
+        <div class="wv-spatial" style="grid-template-columns:minmax(220px,260px) 150px minmax(0,1fr) 200px;align-items:start">
+          <div><div class="wv-sec">Spatial statistics · zone distribution</div>
+            <select id="wvZone" style="width:100%">
+              <option value="2">2 zone · center / edge</option>
+              <option value="4r">4 zone · rings</option>
+              <option value="4q">4 zone · quadrants</option>
+            </select>
+            <div class="wv-opt" style="margin-top:8px">
+              <label for="wvR0" data-z="2">Radius</label><span data-z="2"><input type="number" id="wvR0" value="75" min="0" max="150" step="5"> mm</span>
+              <label for="wvRings" data-z="4r">Ring edges</label><span data-z="4r"><input type="text" id="wvRings" value="50, 90, 125" style="width:110px"> mm</span>
+              <label for="wvQrot" data-z="4q">Rotation</label><span data-z="4q"><input type="number" id="wvQrot" value="0" step="15"> °</span>
+            </div>
+            <p class="hint" style="margin:6px 0 0" id="wvZoneHint"></p></div>
+          <div><canvas id="cvZone" style="height:150px" aria-label="Zone map"></canvas></div>
+          <div class="tablewrap"><table class="tmpl" id="wvZoneTable"></table></div>
           <div><div class="wv-sec">Center of mass</div><div class="wvst" id="wvCom"></div>
             <p class="hint" style="margin:4px 0 0">Weights = site value − wafer minimum, so it points toward the hot side.</p></div>
         </div>
@@ -1361,10 +1370,26 @@ function renderWV(){
   let sw=0,sx=0,sy=0;P.forEach((p,i)=>{const wgt=V[i]-siteSt.min;sw+=wgt;sx+=wgt*p[0];sy+=wgt*p[1]});const com=sw>0?[sx/sw,sy/sw]:[0,0];
   const comR=Math.hypot(com[0],com[1]),comA=(Math.atan2(com[1],com[0])*180/Math.PI+360)%360;
   $("#wvCom").innerHTML=P.length?`Radius : ${comR.toFixed(1)} mm<br>Angle : ${comA.toFixed(1)} °`:'<span class="hint">needs positions</span>';
-  // spatial regions
-  const R0=+$("#wvR0").value||0,inn=[],out=[];P.forEach((p,i)=>(Math.hypot(p[0],p[1])<=R0?inn:out).push(V[i]));
-  $("#wvIn").innerHTML=P.length?statsHTML(inn.length?rowStats(inn):null,inn.length):'<span class="hint">needs positions</span>';
-  $("#wvOut").innerHTML=P.length?statsHTML(out.length?rowStats(out):null,out.length):'<span class="hint">needs positions</span>';
+  // zone distribution
+  const zm=$("#wvZone").value;$$("[data-z]").forEach(el=>el.hidden=el.dataset.z!==zm);
+  const rings=$("#wvRings").value.split(/[ ,;]+/).map(Number).filter(v=>v>0&&v<R).sort((x,y)=>x-y).slice(0,3),qrot=(+$("#wvQrot").value||0);
+  const R0=+$("#wvR0").value||0;
+  const zoneDef=zm==="2"?{n:2,names:[`Center (r ≤ ${R0})`,`Edge (r > ${R0})`],of:(x,y)=>Math.hypot(x,y)<=R0?0:1}
+    :zm==="4r"?{n:rings.length+1,names:[0,...rings].map((r0,k)=>`Ring ${k+1} (${r0}–${k<rings.length?rings[k]:150} mm)`),of:(x,y)=>{const r=Math.hypot(x,y);let k=0;while(k<rings.length&&r>rings[k])k++;return k}}
+    :{n:4,names:["Q1","Q2","Q3","Q4"].map((q,k)=>`${q} (${(qrot+90*k)%360}–${(qrot+90*k+90)%360||360}°)`),of:(x,y)=>{const ang=((Math.atan2(y,x)*180/Math.PI-qrot)%360+360)%360;return Math.min(3,Math.floor(ang/90))}};
+  $("#wvZoneHint").textContent=zm==="2"?"Same as Wafer Viewer's center-to-edge (black / white region) split.":zm==="4r"?"Concentric rings, center outward. Enter 3 ring edges in mm.":"Quadrants counter-clockwise from the +x axis (3 o'clock), notch at 6 o'clock.";
+  const zv=[...Array(zoneDef.n)].map(()=>[]);P.forEach((p,i)=>zv[zoneDef.of(p[0],p[1])].push(V[i]));
+  const ZC=[[37,99,235],[219,39,119],[22,163,74],[234,88,12],[124,58,237]];
+  if(P.length){const zs=zv.map(v=>v.length?rowStats(v):null),means=zs.filter(Boolean).map(z=>z.mean),spread=means.length>1?Math.max(...means)-Math.min(...means):null;
+    $("#wvZoneTable").innerHTML=`<tr><th>Zone</th><th class="n">Sites</th><th class="n">Mean</th><th class="n">3-sigma</th><th class="n">Range</th><th class="n">Max</th><th class="n">Min</th><th class="n">Mean − wafer</th></tr>`+
+      zs.map((z,k)=>`<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${rgb(ZC[k])};margin-right:6px"></i>${zoneDef.names[k]}</td>${z?`<td class="n">${zv[k].length}</td><td class="n">${z.mean.toFixed(2)}</td><td class="n">${z.three.toFixed(2)} (${(100*z.three/Math.abs(z.mean)).toFixed(1)} %)</td><td class="n">${z.range.toFixed(2)}</td><td class="n">${z.max.toFixed(2)}</td><td class="n">${z.min.toFixed(2)}</td><td class="n">${(z.mean-siteSt.mean>=0?"+":"")+(z.mean-siteSt.mean).toFixed(2)}</td>`:'<td class="n">0</td><td colspan="6" class="hint">no sites in this zone</td>'}</tr>`).join("")+
+      `<tr><td colspan="8"><b>Zone-to-zone spread</b> (highest zone mean − lowest): <b style="font-family:var(--mono)">${spread==null?"—":spread.toFixed(2)+" °C"}</b></td></tr>`;
+    const zc=$("#cvZone");if(zc.clientWidth){const{g,w,h}=setup(zc),S=Math.min(w,h)/2-4,cx=w/2,cy=h/2;
+      for(let y=-R;y<=R;y+=4)for(let x=-R;x<=R;x+=4){if(x*x+y*y>R*R)continue;const c3=ZC[zoneDef.of(x,y)];g.fillStyle=`rgba(${c3},.35)`;g.fillRect(cx+x/R*S-1.5,cy-y/R*S-1.5,3.2,3.2)}
+      g.strokeStyle=css("--ink");g.beginPath();g.arc(cx,cy,S,0,7);g.stroke();
+      P.forEach(p=>{g.fillStyle=rgb(ZC[zoneDef.of(p[0],p[1])]);g.beginPath();g.arc(cx+p[0]/R*S,cy-p[1]/R*S,2.4,0,7);g.fill()});
+      g.fillStyle=css("--panel");g.beginPath();g.arc(cx,cy+S,4,Math.PI,0);g.fill()}}
+  else{$("#wvZoneTable").innerHTML='<tr><td class="hint">Zones need sensor positions (Data Viewer → File → Load sensor positions…).</td></tr>';setup($("#cvZone"))}
   // info
   const m=A.meta||{},t=A.tags||{};
   $("#wvInfo").innerHTML=`Wafer ID: ${esc(m.hwid||"—")}<br>Lot ID: ${esc(t.lot||"—")}<br>Recipe: ${esc(t.recipe||"—")}<br>Date: ${esc(m.date||"—")}<br>Tool: ${esc((t.tool||"—")+" "+(t.chamber||""))}`;
@@ -1410,7 +1435,7 @@ function renderWV(){
     g.strokeStyle=css("--ink");g.lineWidth=1.2;g.beginPath();for(let k=0;k<=80;k++){const x=hs.min+k/80*nb*bw,px=X(x),py=Y(pdf(x));k?g.lineTo(px,py):g.moveTo(px,py)}g.stroke();
     g.fillStyle=css("--muted");g.textAlign="center";g.textBaseline="top";[hs.min,hs.mean,hs.max].forEach(v=>g.fillText(v.toFixed(2),X(v),h-Bm+6))}
 }
-["#wvA","#wvB","#wvMath","#wvMode","#wvEdge","#wvSrc","#wvScale","#wvUp","#wvLo","#wvShowSites","#wvShowVals","#wvShowCom","#wvAng","#wvHsrc","#wvRes","#wvR0"].forEach(x=>$(x).addEventListener("input",renderWV));
+["#wvA","#wvB","#wvMath","#wvMode","#wvEdge","#wvSrc","#wvScale","#wvUp","#wvLo","#wvShowSites","#wvShowVals","#wvShowCom","#wvAng","#wvHsrc","#wvRes","#wvR0","#wvZone","#wvRings","#wvQrot"].forEach(x=>$(x).addEventListener("input",renderWV));
 $("#wvB").addEventListener("change",()=>{if($("#wvB").value&&$("#wvMath").value==="A")$("#wvMath").value="A-B";renderWV()});
 $("#wvDdof").addEventListener("change",()=>{DDOF=+$("#wvDdof").value;[current,...Object.values(runs),...baseline,...history].forEach(r=>delete r._sum);log(`Sigma now uses ${DDOF?"n − 1 (sample)":"n (population)"}.`);renderWV()});
 
