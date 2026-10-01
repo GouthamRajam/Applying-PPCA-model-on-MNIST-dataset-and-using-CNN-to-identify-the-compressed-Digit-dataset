@@ -115,3 +115,12 @@ Exact definitions inside KLA's Match Analyzer, Profile Comparison, Recipe Flow C
 - Wafer collections: the first wafer sets the master site pattern; other wafers are interpolated onto it for layer math.
 - Not found publicly: the exact center-of-mass formula ("Bias: Distance") and the exact "Normal" n formula.
 Source: https://patents.google.com/patent/US7945085B2/en
+
+## 6. Laptop ↔ FOUP link (EtchTemp Wafer User Manual 86-3820, via search excerpts)
+- System = EtchTemp wafer + carrier station / RF FOUP + **USB cable** + laptop + CD with software and drivers.
+- The RF FOUP / carrier station charges the wafer and is "the communication link between the Wafer and the host computer through the USB port"; it talks to the wafer by RF, not contact pins.
+- "SensArray Tool is a software program that communicates with the EtchTemp Wafer through the carrier station or RF FOUP": monitors status, retrieves completed surveys, sets up the next survey. EtchTemp needs SensArray Tool 2.1+.
+- To download, the wafer must be back in its base station (RF FOUP or carrier station). Then: Download and Tag Mission Data → Check Tagged Data → View Mission Data.
+- Storage case: keeps batteries charged for 1–2 years; not a carrier station; LCD on the bottom shows wafer serial number and battery voltage.
+- Automation FOUP (different product): static IP http://192.168.10.100:5000 (web UI). The operator's laptop log showed "Local IP: 192.168.10.14", so the USB link appears as a network adapter on 192.168.10.x — this is what Senson's connection check looks for.
+Sources: https://fcc.report/FCC-ID/QTA-RFSC812A/2420628.pdf , https://fccid.io/QTA-RFWC812A/User-Manual/Users-Manual-2420610 , manuals.plus copy (blocked from this environment).
