@@ -1,8 +1,14 @@
 SENSON for Windows  (independent tool; not KLA or Lam software)
 
-INSTALL
-  1. Unzip Senson-win-x64.zip anywhere (e.g. C:\Tools\Senson). No admin rights needed.
-  2. Double-click Senson.exe.
+INSTALL (kit: Senson-kit.zip)
+  1. Unzip Senson-kit.zip anywhere (e.g. C:\Tools\Senson-kit). No admin rights needed.
+  2. Double-click SETUP-Senson.bat. It downloads the Electron runtime once (about 110 MB from
+     github.com), builds Senson\Senson.exe and starts it. Next time just run Senson\Senson.exe.
+  Manual setup (if the script or the download is blocked by IT):
+     a. Download https://github.com/electron/electron/releases/download/v33.2.1/electron-v33.2.1-win32-x64.zip
+     b. Unzip it to a folder named Senson, rename electron.exe to Senson.exe.
+     c. Copy the folder "senson-app" from this kit to Senson\resources\app
+     d. Run Senson.exe.
      The first time, Windows SmartScreen may say "Windows protected your PC" because the app
      is not code-signed. Click "More info" -> "Run anyway" (or ask IT to allow it).
 
