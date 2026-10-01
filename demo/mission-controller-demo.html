@@ -198,7 +198,8 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
 .wv-bar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);font-size:13px;background:color-mix(in srgb,var(--an) 5%,var(--panel))}
 .wv-bar select{max-width:240px}
 .wv-bar input[type=number]{width:64px}
-.wv-grid{display:grid;grid-template-columns:230px minmax(0,1.25fr) minmax(0,1fr);gap:0}
+.wv-grid{display:grid;grid-template-columns:280px minmax(0,1.25fr) minmax(0,1fr);gap:0}
+.wv-opt select{width:100%;min-width:0}
 .wv-grid>div{min-width:0;padding:10px 12px;border-right:1px solid var(--line)}
 .wv-grid>div:last-child{border-right:0}
 .wv-sec{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--an);margin:10px 0 4px}
@@ -598,9 +599,24 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
             <div class="wv-sec">Wafer statistics</div>
             <select id="wvSrc"><option value="data">Data (sites)</option><option value="map">Interpolated map</option></select>
             <div class="wvst" id="wvStats" style="margin-top:6px"></div>
+            <div class="wv-sec">Wafer view</div>
+            <div class="wv-opt">
+              <label for="wvView">Wafer view</label><select id="wvView"><option value="grad">Color gradient</option><option value="contour">Contour</option><option value="sites">Sites only</option><option value="3d">3-D surface</option></select>
+              <label for="wvDens">Point density</label><select id="wvDens"><option value="50">Low (50 × 50)</option><option value="100" selected>Normal (100 × 100)</option><option value="200">High (200 × 200)</option></select>
+              <label for="wvInterp">Interpolation</label><select id="wvInterp"><option value="tps">Auto (smooth spline)</option><option value="auto">Inverse distance · normal (n from site count)</option><option value="soft">Inverse distance · soft (n = 2)</option><option value="harsh">Inverse distance · harsh (n = 4)</option></select>
+            </div>
+            <div class="wv-sec">Data filter</div>
+            <div class="row" style="margin:2px 0"><input type="checkbox" id="wvFilt"><label for="wvFilt">Control limits</label>
+              <select id="wvFiltMode"><option value="hl">Highlight</option><option value="ex">Exclude</option></select></div>
+            <div class="wv-opt">
+              <label for="wvFiltKind">Kind</label><select id="wvFiltKind"><option value="user">User</option><option value="sig">Mean ± k·sigma</option></select>
+              <label for="wvFiltK" data-fk="sig">k</label><input type="number" id="wvFiltK" data-fk="sig" value="3" step="0.5" min="0.5">
+              <label for="wvFiltU" data-fk="user">Upper</label><input type="number" id="wvFiltU" data-fk="user" value="30.5" step="0.1">
+              <label for="wvFiltL" data-fk="user">Lower</label><input type="number" id="wvFiltL" data-fk="user" value="29.0" step="0.1">
+            </div>
             <div class="wv-sec">Scale</div>
             <div class="wv-opt">
-              <label for="wvScale">Scale</label><select id="wvScale"><option value="mm">Max/Min</option><option value="user">User</option></select>
+              <label for="wvScale">Scale</label><select id="wvScale"><option value="mm">Max/Min</option><option value="3s">3-sigma</option><option value="user">User</option></select>
               <label for="wvUp">Upper</label><input type="number" id="wvUp" step="0.01">
               <label for="wvLo">Lower</label><input type="number" id="wvLo" step="0.01">
             </div>
@@ -608,6 +624,21 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
             <div class="row" style="margin:2px 0"><input type="checkbox" id="wvShowSites" checked><label for="wvShowSites">Show sites</label></div>
             <div class="row" style="margin:2px 0"><input type="checkbox" id="wvShowVals" checked><label for="wvShowVals">Show values</label></div>
             <div class="row" style="margin:2px 0"><input type="checkbox" id="wvShowCom" checked><label for="wvShowCom">Show center of mass</label></div>
+            <div class="wv-opt">
+              <label for="wvAxes">Axes</label><select id="wvAxes"><option value="none">None</option><option value="cross">Center cross</option><option value="grid">Grid</option></select>
+            </div>
+            <div class="row" style="margin:2px 0"><input type="checkbox" id="wvRuler"><label for="wvRuler">Show ruler</label></div>
+            <div class="row" style="margin:2px 0"><input type="checkbox" id="wvDie"><label for="wvDie">Show wafer layout</label></div>
+            <div class="wv-opt">
+              <label for="wvDieX">Die size (x, y)</label><span style="display:flex;gap:4px"><input type="number" id="wvDieX" value="30" step="1" style="width:56px"> <input type="number" id="wvDieY" value="30" step="1" style="width:56px" aria-label="Die size y"></span>
+              <label for="wvOffX">Offset (x, y)</label><span style="display:flex;gap:4px"><input type="number" id="wvOffX" value="150" step="1" style="width:56px"> <input type="number" id="wvOffY" value="150" step="1" style="width:56px" aria-label="Offset y"></span>
+            </div>
+            <div class="wv-sec">Text format options</div>
+            <div class="wv-opt">
+              <label for="wvDig">No of digits</label><select id="wvDig"><option value="2">Auto</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>
+            </div>
+            <div class="row" style="margin:2px 0"><input type="checkbox" id="wvShow1s"><label for="wvShow1s">Show 1-sigma</label></div>
+            <div class="row" style="margin:2px 0"><input type="checkbox" id="wvShowPct" checked><label for="wvShowPct">Show percentage</label></div>
             <div class="wv-sec">Wafer info</div>
             <div class="wvst" id="wvInfo" style="font-family:var(--sans)"></div>
           </div>
@@ -632,13 +663,19 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
         <div class="wv-spatial" style="grid-template-columns:minmax(220px,260px) 150px minmax(0,1fr) 200px;align-items:start">
           <div><div class="wv-sec">Spatial statistics · zone distribution</div>
             <select id="wvZone" style="width:100%">
-              <option value="2">2 zone · center / edge</option>
-              <option value="4r" selected>4 zone · Inner / MI / MO / Outer</option>
+              <option value="2" selected>Center-to-edge (black: r ≤ radius)</option>
+              <option value="s2s">Side-to-side (black: one side of a line)</option>
+              <option value="ann">Annular (black: ring r1–r2)</option>
+              <option value="4r">4 zone · Inner / MI / MO / Outer</option>
               <option value="4q">4 zone · quadrants</option>
             </select>
             <div class="wv-opt" style="margin-top:8px">
-              <label for="wvR0" data-z="2">Radius</label><span data-z="2"><input type="number" id="wvR0" value="75" min="0" max="300" step="5"> mm</span>
+              <label for="wvR0" data-z="2">Radius</label><span data-z="2"><input type="number" id="wvR0" value="0" min="0" max="300" step="5"> mm</span>
               <label for="wvRings" data-z="4r">Ring edges</label><span data-z="4r"><input type="text" id="wvRings" value="70, 90, 120" style="width:110px"> mm</span>
+              <label for="wvSAng" data-z="s2s">Line angle</label><span data-z="s2s"><input type="number" id="wvSAng" value="90" step="15"> °</span>
+              <label for="wvSOff" data-z="s2s">Offset</label><span data-z="s2s"><input type="number" id="wvSOff" value="0" step="5"> mm</span>
+              <label for="wvA1" data-z="ann">Ring r1</label><span data-z="ann"><input type="number" id="wvA1" value="70" step="5"> mm</span>
+              <label for="wvA2" data-z="ann">Ring r2</label><span data-z="ann"><input type="number" id="wvA2" value="120" step="5"> mm</span>
               <label for="wvQrot" data-z="4q">Rotation</label><span data-z="4q"><input type="number" id="wvQrot" value="0" step="15"> °</span>
             </div>
             <p class="hint" style="margin:6px 0 0" id="wvZoneHint"></p></div>
@@ -646,6 +683,13 @@ svg.wafer{width:100%;max-width:440px;height:auto;display:block;justify-self:cent
           <div class="tablewrap"><table class="tmpl" id="wvZoneTable"></table></div>
           <div><div class="wv-sec">Center of mass</div><div class="wvst" id="wvCom"></div>
             <p class="hint" style="margin:4px 0 0">Weights = site value − wafer minimum, so it points toward the hot side.</p></div>
+        </div>
+        <div class="wv-spatial" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr) 220px">
+          <div><div class="wv-sec">Radial distribution</div><canvas id="cvWvRad" style="height:190px"></canvas></div>
+          <div><div class="wv-sec">Angular distribution</div><canvas id="cvWvAng" style="height:190px"></canvas></div>
+          <div><div class="wv-sec">Distribution center</div>
+            <select id="wvDistC" style="width:100%"><option value="geo">Geometric center</option><option value="com">Center of mass</option></select>
+            <p class="hint" style="margin:6px 0 0">Radial: each site's value against its distance from the chosen center, with ring averages. Angular: sites in the outer half of the wafer against their angle.</p></div>
         </div>
       </div>
       <p class="note">Statistics: mean, 3-sigma = 3 × standard deviation, range = max − min. Percentages are of the mean, as in Wafer Viewer. Use Wafer B with "A − B" to compare two wafers or two chambers site by site.</p>
@@ -813,15 +857,15 @@ function solve(A,b){const n=b.length;for(let c=0;c<n;c++){let p=c;for(let r=c+1;
 const phi=r=>r>0?r*r*Math.log(r):0;
 /* Map interpolation for display: no extrapolation beyond the outermost sensors (value held flat
    along the radius) and never outside the measured min/max, like Wafer Viewer's maps. */
-function mapInterpolator(pts,vals,method){const f=interpolator(pts,vals,method);if(!pts.length)return f;
+function mapInterpolator(pts,vals,method,pw){const f=interpolator(pts,vals,method,pw);if(!pts.length)return f;
   const rOut=Math.max(...pts.map(p=>Math.hypot(p[0],p[1]))),lo=Math.min(...vals),hi=Math.max(...vals);
   return(x,y)=>{const r=Math.hypot(x,y);if(r>rOut&&r>0){x*=rOut/r;y*=rOut/r}const v=f(x,y);return v<lo?lo:v>hi?hi:v}}
-function interpolator(pts0,vals0,method){
+function interpolator(pts0,vals0,method,pw){pw=pw||2;
   // merge sensors that share a position (a singular system otherwise gives NaN everywhere)
   const pts=[],vals=[],cnt=[];pts0.forEach((p,i)=>{if(!isFinite(p[0])||!isFinite(p[1])||!isFinite(vals0[i]))return;
     const k=pts.findIndex(q=>Math.hypot(q[0]-p[0],q[1]-p[1])<0.5);if(k<0){pts.push(p.slice());vals.push(vals0[i]);cnt.push(1)}else{vals[k]=(vals[k]*cnt[k]+vals0[i])/(cnt[k]+1);cnt[k]++}});
   const P=pts.map(p=>[p[0]/R,p[1]/R]),n=P.length;
-  if(n<3||method==="idw")return(x,y)=>{x/=R;y/=R;let sw=0,sv=0;for(let j=0;j<n;j++){const d=Math.hypot(x-P[j][0],y-P[j][1]);if(d<1e-9)return vals[j];const w=1/(d*d);sw+=w;sv+=w*vals[j]}return sv/sw};
+  if(n<3||method==="idw")return(x,y)=>{x/=R;y/=R;let sw=0,sv=0;for(let j=0;j<n;j++){const d=Math.hypot(x-P[j][0],y-P[j][1]);if(d<1e-9)return vals[j];const w=1/Math.pow(d,pw);sw+=w;sv+=w*vals[j]}return sv/sw};
   const N=n+3,A=[],b=new Float64Array(N);for(let i=0;i<N;i++)A.push(new Float64Array(N));
   for(let i=0;i<n;i++){for(let j=0;j<n;j++)A[i][j]=phi(Math.hypot(P[i][0]-P[j][0],P[i][1]-P[j][1]));
     A[i][n]=A[n][i]=1;A[i][n+1]=A[n+1][i]=P[i][0];A[i][n+2]=A[n+2][i]=P[i][1];b[i]=vals[i]}
@@ -1401,90 +1445,139 @@ function siteValues(run,mode){
   if(mode==="dv"&&run===current){const d=dvValues();return{ids:d.ids,vals:d.vals}}
   if(mode==="ss"){const s=summarize(run);if(s.ssT)return{ids:run.ids.slice(),vals:s.ssT.slice()}}
   return{ids:run.ids.slice(),vals:run.ids.map((_,j)=>{let a=0;for(const r of run.T)a+=r[j];return a/run.T.length})}}
-let wvIsDiff=false;
-function statsHTML(st,n){if(!st)return'<span class="hint">no sites</span>';const pc=v=>wvIsDiff?"":` (${(100*v/Math.abs(st.mean)).toFixed(1)} %)`;
-  return`Mean : ${st.mean.toFixed(2)} °C<br>3-sigma : ${st.three.toFixed(2)} °C${pc(st.three)}<br>Range : ${st.range.toFixed(2)} °C${pc(st.range)}<br>Maximum : ${st.max.toFixed(2)} °C<br>Minimum : ${st.min.toFixed(2)} °C`+(n!=null?`<br>Sites : ${n}`:"")}
+let wvIsDiff=false,wvDig=2;
+const fx=v=>v.toFixed(wvDig);
+function statsHTML(st,n){if(!st)return'<span class="hint">no sites</span>';const showPct=$("#wvShowPct").checked&&!wvIsDiff;const pc=v=>showPct?` (${(100*v/Math.abs(st.mean)).toFixed(1)} %)`:"";
+  return`Mean : ${fx(st.mean)} °C<br>3-sigma : ${fx(st.three)} °C${pc(st.three)}`+($("#wvShow1s").checked?`<br>1-sigma : ${fx(st.sigma)} °C${pc(st.sigma)}`:"")+`<br>Range : ${fx(st.range)} °C${pc(st.range)}<br>Maximum : ${fx(st.max)} °C<br>Minimum : ${fx(st.min)} °C`+(n!=null?`<br>Sites : ${n}`:"")}
+function idwPower(n){const m=$("#wvInterp").value;if(m==="soft")return 2;if(m==="harsh")return 4;
+  // Auto: fewer sites -> higher n (patent: optimum 2..4). ASSUMPTION: linear from n=4 at 25 sites to n=2 at 150+ sites.
+  return Math.max(2,Math.min(4,4-2*(n-25)/125))}
+function wvInterp(P,V){const m=$("#wvInterp").value;return mapInterpolator(P,V,m==="tps"?"tps":"idw",idwPower(P.length))}
 function renderWV(){
-  const R_=allRuns(),names=Object.keys(R_);
+  const R_=allRuns();wvDig=+$("#wvDig").value||2;
   fillWVSelect($("#wvA"),currentName,false);fillWVSelect($("#wvB"),null,true);
   for(const k of["A","B"])if(wvPending[k]){$("#wv"+k).value=wvPending[k];if(k==="B"&&$("#wvMath").value==="A")$("#wvMath").value="A-B";wvPending[k]=null}
   const A=R_[$("#wvA").value],B=$("#wvB").value?R_[$("#wvB").value]:null,mode=$("#wvMode").value,math=$("#wvMath").value;
-  let{ids,vals}=siteValues(A,mode),posRun=A;
-  wvIsDiff=!!B&&(math==="A-B"||math==="B-A");
-  if(math!=="A"&&!B){$("#wvMath").value="A";return renderWV()} // no Wafer B: show Wafer A instead of a dead display
-  {$("#wvWarn").hidden=true;
-    if(B&&math!=="A"){const b=siteValues(B,mode),mb=new Map(b.ids.map((id,k)=>[id,b.vals[k]]));
-      if(math==="B"){ids=b.ids;vals=b.vals;posRun=B}
-      else{const I=[],V=[];ids.forEach((id,k)=>{if(!mb.has(id))return;const x=vals[k],y=mb.get(id);I.push(id);V.push(math==="A-B"?x-y:math==="B-A"?y-x:(x+y)/2)});ids=I;vals=V}}}
+  if(math!=="A"&&!B){$("#wvMath").value="A";return renderWV()}
+  wvIsDiff=!!B&&(math==="A-B"||math==="B-A");$("#wvWarn").hidden=true;
+  $$("[data-fk]").forEach(el=>el.hidden=el.dataset.fk!==$("#wvFiltKind").value);
+  let{ids,vals}=siteValues(A,mode),posRun=A,note="";
+  if(B&&math!=="A"){const b=siteValues(B,mode);
+    if(math==="B"){ids=b.ids;vals=b.vals;posRun=B}
+    else{ // master site pattern = Wafer A; Wafer B is interpolated onto A's sites when both have positions
+      const pa=positioned(A,ids,vals),pb=positioned(B,b.ids,b.vals);let bAt;
+      if(pa.P.length>=3&&pb.P.length>=3){const fb=wvInterp(pb.P,pb.V);ids=pa.I;vals=pa.V;bAt=pa.P.map(p=>fb(p[0],p[1]));note="Wafer B interpolated onto Wafer A's site pattern."}
+      else{const mb=new Map(b.ids.map((id,k)=>[id,b.vals[k]])),I=[],Va=[],Vb=[];ids.forEach((id,k)=>{if(mb.has(id)){I.push(id);Va.push(vals[k]);Vb.push(mb.get(id))}});ids=I;vals=Va;bAt=Vb;note="Sites matched by sensor number."}
+      vals=vals.map((x,k)=>math==="A-B"?x-bAt[k]:math==="B-A"?bAt[k]-x:(x+bAt[k])/2)}}
+  // data filter (control limits)
+  let flagged=new Set();
+  if($("#wvFilt").checked&&vals.length>1){const st0=rowStats(vals);let up,lw;
+    if($("#wvFiltKind").value==="sig"){const k=+$("#wvFiltK").value||3;up=st0.mean+k*st0.sigma;lw=st0.mean-k*st0.sigma}else{up=+$("#wvFiltU").value;lw=+$("#wvFiltL").value}
+    ids.forEach((id,i)=>{if(vals[i]>up||vals[i]<lw)flagged.add(id)});
+    if($("#wvFiltMode").value==="ex"&&flagged.size){const keep=ids.map((id,i)=>!flagged.has(id));ids=ids.filter((_,i)=>keep[i]);vals=vals.filter((_,i)=>keep[i])}
+    note+=` Control limits ${fx(lw)}…${fx(up)} °C: ${flagged.size} site${flagged.size===1?"":"s"} outside${$("#wvFiltMode").value==="ex"?" (excluded)":" (highlighted red)"}.`}
   $("#wvSites").textContent=ids.length;
   const siteSt=vals.length?rowStats(vals):null;
-  const pz=positioned(posRun,ids,vals),P=pz.P,V=pz.V,edge=Math.max(0,+$("#wvEdge").value||0),Re=R-edge;
-  const f=P.length>=3?mapInterpolator(P,V,"tps"):null;
-  const N=110,grid=[];if(f)for(let j=0;j<N;j++)for(let i=0;i<N;i++){const x=((i+.5)/N*2-1)*R,y=(1-(j+.5)/N*2)*R;if(x*x+y*y<=Re*Re)grid.push([x,y,f(x,y)])}
+  const pz=positioned(posRun,ids,vals),P=pz.P,V=pz.V,PI=pz.I,edge=Math.max(0,+$("#wvEdge").value||0),Re=R-edge;
+  const f=P.length>=3?wvInterp(P,V):null;
+  const N=+$("#wvDens").value||100,grid=[];if(f)for(let j=0;j<N;j++)for(let i=0;i<N;i++){const x=((i+.5)/N*2-1)*R,y=(1-(j+.5)/N*2)*R;if(x*x+y*y<=Re*Re)grid.push([x,y,f(x,y)])}
   const mapSt=grid.length?rowStats(grid.map(q=>q[2])):null;
   $("#wvStats").innerHTML=statsHTML($("#wvSrc").value==="map"?mapSt:siteSt,$("#wvSrc").value==="map"?null:ids.length);
   if(!siteSt)return;
-  if(!f){const w=$("#wvWarn");w.hidden=false;w.textContent=`Sensor positions unknown for ${ids.length-P.length} of ${ids.length} sites. Statistics use every site; the map needs positions (Data Viewer → File → Load sensor positions…).`}
-  else if(P.length<ids.length){const w=$("#wvWarn");w.hidden=false;w.textContent=`${ids.length-P.length} sites have no position: left off the map, still in the statistics.`}
-  let lo,hi;if($("#wvScale").value==="user"){lo=+$("#wvLo").value;hi=+$("#wvUp").value}else{lo=siteSt.min;hi=siteSt.max;$("#wvLo").value=lo.toFixed(2);$("#wvUp").value=hi.toFixed(2)}
-  if(!(hi-lo>=0.01)){const m=isFinite(hi+lo)?(hi+lo)/2:0;lo=m-0.05;hi=m+0.05} // a flat wafer stays one colour instead of magnifying rounding noise
+  const warn=[];if(!f)warn.push(`Sensor positions unknown for ${ids.length-P.length} of ${ids.length} sites. Statistics use every site; the map needs positions (Load sensor positions…).`);
+  else if(P.length<ids.length)warn.push(`${ids.length-P.length} sites have no position: left off the map, still in the statistics.`);
+  if(note.trim())warn.push(note.trim());if(warn.length){$("#wvWarn").hidden=false;$("#wvWarn").textContent=warn.join(" ")}
+  let lo,hi;const sc=$("#wvScale").value;
+  if(sc==="user"){lo=+$("#wvLo").value;hi=+$("#wvUp").value}else{if(sc==="3s"){lo=siteSt.mean-siteSt.three;hi=siteSt.mean+siteSt.three}else{lo=siteSt.min;hi=siteSt.max}$("#wvLo").value=lo.toFixed(2);$("#wvUp").value=hi.toFixed(2)}
+  if(!(hi-lo>=0.01)){const m=isFinite(hi+lo)?(hi+lo)/2:0;lo=m-0.05;hi=m+0.05}
+  const nrm=v=>(v-lo)/(hi-lo),contour=$("#wvView").value==="contour",colorOf=v=>{let t=nrm(v);if(contour)t=Math.round(Math.max(0,Math.min(1,t))*12)/12;return wvColor(t)};
   // center of mass (weights = value - min)
   let sw=0,sx=0,sy=0;P.forEach((p,i)=>{const wgt=V[i]-siteSt.min;sw+=wgt;sx+=wgt*p[0];sy+=wgt*p[1]});const com=sw>0?[sx/sw,sy/sw]:[0,0];
   const comR=Math.hypot(com[0],com[1]),comA=(Math.atan2(com[1],com[0])*180/Math.PI+360)%360;
   $("#wvCom").innerHTML=P.length?`Radius : ${comR.toFixed(1)} mm<br>Angle : ${comA.toFixed(1)} °`:'<span class="hint">needs positions</span>';
-  // zone distribution
+  // ---- spatial distribution / zones ----
   const zm=$("#wvZone").value;$$("[data-z]").forEach(el=>el.hidden=el.dataset.z!==zm);
   const rings=$("#wvRings").value.split(/[ ,;]+/).map(Number).filter(v=>v>0&&v<R).sort((x,y)=>x-y).slice(0,3),qrot=(+$("#wvQrot").value||0);
-  const R0=+$("#wvR0").value||0;
-  const zoneDef=zm==="2"?{n:2,names:[`Center (r ≤ ${R0})`,`Edge (r > ${R0})`],of:(x,y)=>Math.hypot(x,y)<=R0?0:1}
+  const R0=+$("#wvR0").value||0,sa=(+$("#wvSAng").value||0)*Math.PI/180,so=+$("#wvSOff").value||0,a1=+$("#wvA1").value||0,a2=+$("#wvA2").value||0;
+  const zoneDef=zm==="2"?{n:2,bw:true,names:[`Black region (r ≤ ${R0} mm)`,`White region (r > ${R0} mm)`],of:(x,y)=>Math.hypot(x,y)<=R0?0:1}
+    :zm==="s2s"?{n:2,bw:true,names:[`Black region (one side, line ${+$("#wvSAng").value||0}°, offset ${so} mm)`,"White region (other side)"],of:(x,y)=>(x*Math.cos(sa)+y*Math.sin(sa))<=so?0:1}
+    :zm==="ann"?{n:2,bw:true,names:[`Black region (${a1}–${a2} mm ring)`,"White region (rest)"],of:(x,y)=>{const r=Math.hypot(x,y);return r>=Math.min(a1,a2)&&r<=Math.max(a1,a2)?0:1}}
     :zm==="4r"?{n:rings.length+1,names:[0,...rings].map((r0,k)=>{const lab=rings.length===3?["Inner","MI","MO","Outer"][k]:`Ring ${k+1}`;return k<rings.length?`${lab} (${r0}–${rings[k]} mm)`:`${lab} (> ${r0} mm)`}),of:(x,y)=>{const r=Math.hypot(x,y);let k=0;while(k<rings.length&&r>rings[k])k++;return k}}
     :{n:4,names:["Q1","Q2","Q3","Q4"].map((q,k)=>`${q} (${(qrot+90*k)%360}–${(qrot+90*k+90)%360||360}°)`),of:(x,y)=>{const ang=((Math.atan2(y,x)*180/Math.PI-qrot)%360+360)%360;return Math.min(3,Math.floor(ang/90))}};
-  $("#wvZoneHint").textContent=zm==="2"?"Same as Wafer Viewer's center-to-edge (black / white region) split.":zm==="4r"?`Inner / MI (middle-inner) / MO (middle-outer) / Outer. Defaults 70, 90, 120 mm on a 300 mm wafer; they scale when you change the wafer size. A site exactly on an edge belongs to the inner zone.`:"Quadrants counter-clockwise from the +x axis (3 o'clock), notch at 6 o'clock.";
+  $("#wvZoneHint").textContent={"2":"Center-to-edge: black = sites within the radius. Radius 0 picks only a site exactly at the center.","s2s":"Side-to-side: a line through the wafer at the given angle and offset; black = the side toward which the angle points is excluded… black = sites with x·cosθ + y·sinθ ≤ offset.","ann":"Annular: black = sites inside the ring between r1 and r2.","4r":"Inner / MI (middle-inner) / MO (middle-outer) / Outer. Defaults 70, 90, 120 mm on a 300 mm wafer; they scale with wafer size. A site exactly on an edge belongs to the inner zone.","4q":"Quadrants counter-clockwise from the +x axis (3 o'clock), notch at 6 o'clock."}[zm];
+  if(zm==="s2s")$("#wvZoneHint").textContent="Side-to-side: black = sites with x·cos θ + y·sin θ ≤ offset (θ = line angle). θ = 90°, offset 0 splits bottom (black) from top (white).";
   const zv=[...Array(zoneDef.n)].map(()=>[]);P.forEach((p,i)=>zv[zoneDef.of(p[0],p[1])].push(V[i]));
-  const ZC=[[37,99,235],[219,39,119],[22,163,74],[234,88,12],[124,58,237]];
+  const ZC=zoneDef.bw?[[20,20,20],[200,200,200]]:[[37,99,235],[219,39,119],[22,163,74],[234,88,12],[124,58,237]];
   if(P.length){const zs=zv.map(v=>v.length?rowStats(v):null),means=zs.filter(Boolean).map(z=>z.mean),spread=means.length>1?Math.max(...means)-Math.min(...means):null;
-    $("#wvZoneTable").innerHTML=`<tr><th>Zone</th><th class="n">Sites</th><th class="n">Mean</th><th class="n">3-sigma</th><th class="n">Range</th><th class="n">Max</th><th class="n">Min</th><th class="n">Mean − wafer</th></tr>`+
-      zs.map((z,k)=>`<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${rgb(ZC[k])};margin-right:6px"></i>${zoneDef.names[k]}</td>${z?`<td class="n">${zv[k].length}</td><td class="n">${z.mean.toFixed(2)}</td><td class="n">${z.three.toFixed(2)} (${(100*z.three/Math.abs(z.mean)).toFixed(1)} %)</td><td class="n">${z.range.toFixed(2)}</td><td class="n">${z.max.toFixed(2)}</td><td class="n">${z.min.toFixed(2)}</td><td class="n">${(z.mean-siteSt.mean>=0?"+":"")+(z.mean-siteSt.mean).toFixed(2)}</td>`:'<td class="n">0</td><td colspan="6" class="hint">no sites in this zone</td>'}</tr>`).join("")+
-      `<tr><td colspan="8"><b>Zone-to-zone spread</b> (highest zone mean − lowest): <b style="font-family:var(--mono)">${spread==null?"—":spread.toFixed(2)+" °C"}</b></td></tr>`;
+    const pct=(z,v)=>$("#wvShowPct").checked&&!wvIsDiff?` (${(100*v/Math.abs(z.mean)).toFixed(1)} %)`:"";
+    $("#wvZoneTable").innerHTML=`<tr><th>${zoneDef.bw?"Region":"Zone"}</th><th class="n">Sites</th><th class="n">Mean</th><th class="n">3-sigma</th><th class="n">Range</th><th class="n">Max</th><th class="n">Min</th><th class="n">Mean − wafer</th></tr>`+
+      zs.map((z,k)=>`<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:2px;border:1px solid var(--ink);background:${rgb(ZC[k])};margin-right:6px"></i>${zoneDef.names[k]}</td>${z?`<td class="n">${zv[k].length}</td><td class="n">${fx(z.mean)}</td><td class="n">${fx(z.three)}${pct(z,z.three)}</td><td class="n">${fx(z.range)}${pct(z,z.range)}</td><td class="n">${fx(z.max)}</td><td class="n">${fx(z.min)}</td><td class="n">${(z.mean-siteSt.mean>=0?"+":"")+fx(z.mean-siteSt.mean)}</td>`:'<td class="n">0</td><td colspan="6" class="hint">no sites here</td>'}</tr>`).join("")+
+      `<tr><td colspan="8"><b>${zoneDef.bw?"Black − white":"Zone-to-zone spread"}</b>: <b style="font-family:var(--mono)">${zoneDef.bw?(zs[0]&&zs[1]?fx(zs[0].mean-zs[1].mean)+" °C":"—"):(spread==null?"—":fx(spread)+" °C")}</b></td></tr>`;
     const zc=$("#cvZone");if(zc.clientWidth){const{g,w,h}=setup(zc),S=Math.min(w,h)/2-4,cx=w/2,cy=h/2;
-      for(let y=-R;y<=R;y+=4)for(let x=-R;x<=R;x+=4){if(x*x+y*y>R*R)continue;const c3=ZC[zoneDef.of(x,y)];g.fillStyle=`rgba(${c3},.35)`;g.fillRect(cx+x/R*S-1.5,cy-y/R*S-1.5,3.2,3.2)}
+      for(let y=-R;y<=R;y+=4)for(let x=-R;x<=R;x+=4){if(x*x+y*y>R*R)continue;const c3=ZC[zoneDef.of(x,y)];g.fillStyle=`rgba(${c3},${zoneDef.bw?.55:.35})`;g.fillRect(cx+x/R*S-1.5,cy-y/R*S-1.5,3.2,3.2)}
       g.strokeStyle=css("--ink");g.beginPath();g.arc(cx,cy,S,0,7);g.stroke();
-      P.forEach(p=>{g.fillStyle=rgb(ZC[zoneDef.of(p[0],p[1])]);g.beginPath();g.arc(cx+p[0]/R*S,cy-p[1]/R*S,2.4,0,7);g.fill()});
+      P.forEach(p=>{g.fillStyle=zoneDef.bw?css("--bad"):rgb(ZC[zoneDef.of(p[0],p[1])]);g.beginPath();g.arc(cx+p[0]/R*S,cy-p[1]/R*S,2.2,0,7);g.fill()});
       g.fillStyle=css("--panel");g.beginPath();g.arc(cx,cy+S,4,Math.PI,0);g.fill()}}
-  else{$("#wvZoneTable").innerHTML='<tr><td class="hint">Zones need sensor positions (Data Viewer → File → Load sensor positions…).</td></tr>';setup($("#cvZone"))}
+  else{$("#wvZoneTable").innerHTML='<tr><td class="hint">Spatial statistics need sensor positions.</td></tr>';setup($("#cvZone"))}
   // info
   const m=A.meta||{},t=A.tags||{};
-  $("#wvInfo").innerHTML=`Wafer ID: ${esc(m.hwid||"—")}<br>Lot ID: ${esc(t.lot||"—")}<br>Recipe: ${esc(t.recipe||"—")}<br>Date: ${esc(m.date||"—")}<br>Tool: ${esc((t.tool||"—")+" "+(t.chamber||""))}<br>Wafer diameter: ${2*R} mm`;
+  $("#wvInfo").innerHTML=`Wafer ID: ${esc(m.hwid||"—")}<br>Lot ID: ${esc(t.lot||"—")}<br>Recipe: ${esc(t.recipe||"—")}<br>Date: ${esc(m.date||"—")}<br>Tool: ${esc((t.tool||"—")+" "+(t.chamber||""))}<br>Wafer diameter: ${2*R} mm<br>Interpolation: ${$("#wvInterp").value==="tps"?"thin-plate spline":"inverse distance, n = "+idwPower(P.length).toFixed(2)}`;
   // ---- main map ----
-  const c=$("#cvWv");if(c.clientWidth){const{g,w,h}=setup(c),cbW=70,S=Math.min(w-cbW-20,h-34)/2,cx=10+S,cy=8+S;
-    if(f){const M=180,img=new ImageData(M,M);
-      for(let j=0;j<M;j++)for(let i=0;i<M;i++){const x=((i+.5)/M*2-1)*R,y=(1-(j+.5)/M*2)*R,q=(j*M+i)*4;if(x*x+y*y>R*R)continue;
-        if(x*x+y*y>Re*Re){const gc=[150,150,150];img.data[q]=gc[0];img.data[q+1]=gc[1];img.data[q+2]=gc[2];img.data[q+3]=255;continue}
-        const col=wvColor((f(x,y)-lo)/(hi-lo));img.data[q]=col[0];img.data[q+1]=col[1];img.data[q+2]=col[2];img.data[q+3]=255}
-      const off=document.createElement("canvas");off.width=M;off.height=M;off.getContext("2d").putImageData(img,0,0);
-      g.save();g.beginPath();g.arc(cx,cy,S,0,7);g.clip();g.imageSmoothingEnabled=true;g.drawImage(off,cx-S,cy-S,2*S,2*S);g.restore()}
-    else{g.fillStyle=css("--panel2");g.beginPath();g.arc(cx,cy,S,0,7);g.fill()}
-    g.strokeStyle="#000";g.lineWidth=1.5;g.beginPath();g.arc(cx,cy,S,0,7);g.stroke();
-    g.fillStyle=css("--panel");g.beginPath();g.arc(cx,cy+S,5,Math.PI,0);g.fill();
-    g.fillStyle=css("--muted");g.font="11px "+css("--mono");g.textAlign="center";g.textBaseline="top";
-    {const st=R*40/150;for(let v=-Math.floor(R*.9/st)*st;v<=R*.9+1e-9;v+=st)g.fillText(v.toFixed(1),cx+v/R*S,cy+S+8)}
-    if($("#wvShowSites").checked||$("#wvShowVals").checked){g.font="600 10.5px "+css("--mono");g.textBaseline="bottom";
-      P.forEach((p,i)=>{const x=cx+p[0]/R*S,y=cy-p[1]/R*S;if($("#wvShowSites").checked){g.fillStyle="#000";g.beginPath();g.arc(x,y,2.6,0,7);g.fill()}
-        if($("#wvShowVals").checked){g.fillStyle="#000";g.fillText(V[i].toFixed(2),x,y-3)}})}
-    if($("#wvShowCom").checked&&P.length){g.fillStyle="#1a7f3c";g.strokeStyle="#fff";g.beginPath();g.arc(cx+com[0]/R*S,cy-com[1]/R*S,6,0,7);g.fill();g.stroke()}
+  const c=$("#cvWv");if(c.clientWidth){const{g,w,h}=setup(c),cbW=70,S=Math.min(w-cbW-20,h-34)/2,cx=10+S,cy=8+S,view=$("#wvView").value;
+    const toPx=(x,y)=>[cx+x/R*S,cy-y/R*S];
+    if(view==="3d"&&f){draw3DWV(g,w-cbW,h,f,lo,hi,P,V,colorOf)}
+    else{
+      if(f&&view!=="sites"){const M=Math.max(N,160),img=new ImageData(M,M);
+        for(let j=0;j<M;j++)for(let i=0;i<M;i++){const x=((i+.5)/M*2-1)*R,y=(1-(j+.5)/M*2)*R,q=(j*M+i)*4;if(x*x+y*y>R*R)continue;
+          const col=x*x+y*y>Re*Re?[150,150,150]:colorOf(f(x,y));img.data[q]=col[0];img.data[q+1]=col[1];img.data[q+2]=col[2];img.data[q+3]=255}
+        const off=document.createElement("canvas");off.width=M;off.height=M;off.getContext("2d").putImageData(img,0,0);
+        g.save();g.beginPath();g.arc(cx,cy,S,0,7);g.clip();g.imageSmoothingEnabled=!contour;g.drawImage(off,cx-S,cy-S,2*S,2*S);g.restore()}
+      else{g.fillStyle=css("--panel2");g.beginPath();g.arc(cx,cy,S,0,7);g.fill()}
+      g.strokeStyle="#000";g.lineWidth=1.5;g.beginPath();g.arc(cx,cy,S,0,7);g.stroke();
+      g.fillStyle=css("--panel");g.beginPath();g.arc(cx,cy+S,5,Math.PI,0);g.fill();
+      // axes / grid / die layout / ruler
+      const ax=$("#wvAxes").value;g.save();g.beginPath();g.arc(cx,cy,S,0,7);g.clip();
+      if(ax==="grid"){g.strokeStyle="rgba(0,0,0,.25)";g.lineWidth=.7;const st=R*40/150;for(let v=-Math.floor(R/st)*st;v<=R;v+=st){const[px]=toPx(v,0),[,py]=toPx(0,v);g.beginPath();g.moveTo(px,cy-S);g.lineTo(px,cy+S);g.moveTo(cx-S,py);g.lineTo(cx+S,py);g.stroke()}}
+      if(ax==="cross"){g.strokeStyle="rgba(0,0,0,.6)";g.lineWidth=1;g.beginPath();g.moveTo(cx-S,cy);g.lineTo(cx+S,cy);g.moveTo(cx,cy-S);g.lineTo(cx,cy+S);g.stroke()}
+      if($("#wvDie").checked){const dx=Math.max(1,+$("#wvDieX").value||30),dy=Math.max(1,+$("#wvDieY").value||30),ox=+$("#wvOffX").value||0,oy=+$("#wvOffY").value||0;
+        g.strokeStyle="rgba(255,255,255,.75)";g.lineWidth=.8;g.beginPath();
+        for(let k=Math.floor((-R+ox)/dx);k*dx-ox<=R;k++){const[px]=toPx(k*dx-ox,0);g.moveTo(px,cy-S);g.lineTo(px,cy+S)}
+        for(let k=Math.floor((-R+oy)/dy);k*dy-oy<=R;k++){const[,py]=toPx(0,k*dy-oy);g.moveTo(cx-S,py);g.lineTo(cx+S,py)}g.stroke()}
+      g.restore();
+      if($("#wvRuler").checked){const L=50*R/150,[x0]=toPx(-R,0),y0=cy+S-6;g.strokeStyle=css("--ink");g.lineWidth=2;g.beginPath();g.moveTo(x0,y0);g.lineTo(x0+L/R*S,y0);g.stroke();
+        g.fillStyle=css("--ink");g.font="11px "+css("--mono");g.textAlign="left";g.textBaseline="bottom";g.fillText(`${Math.round(L)} mm`,x0,y0-3)}
+      g.fillStyle=css("--muted");g.font="11px "+css("--mono");g.textAlign="center";g.textBaseline="top";
+      {const st=R*40/150;for(let v=-Math.floor(R*.9/st)*st;v<=R*.9+1e-9;v+=st)g.fillText(v.toFixed(1),cx+v/R*S,cy+S+8)}
+      const big=view==="sites";
+      if($("#wvShowSites").checked||$("#wvShowVals").checked||big){g.font="600 10.5px "+css("--mono");g.textBaseline="bottom";g.textAlign="center";
+        P.forEach((p,i)=>{const[x,y]=toPx(p[0],p[1]);
+          if(big){g.fillStyle=rgb(colorOf(V[i]));g.beginPath();g.arc(x,y,7,0,7);g.fill();g.strokeStyle="#000";g.lineWidth=.6;g.stroke()}
+          else if($("#wvShowSites").checked){g.fillStyle="#000";g.beginPath();g.arc(x,y,2.6,0,7);g.fill()}
+          if(flagged.has(PI[i])){g.strokeStyle="#e11d48";g.lineWidth=2.2;g.beginPath();g.arc(x,y,7.5,0,7);g.stroke()}
+          if($("#wvShowVals").checked){g.fillStyle="#000";g.fillText(fx(V[i]),x,y-(big?8:3))}})}
+      if($("#wvShowCom").checked&&P.length){const[x,y]=toPx(com[0],com[1]);g.fillStyle="#1a7f3c";g.strokeStyle="#fff";g.lineWidth=1.5;g.beginPath();g.arc(x,y,6,0,7);g.fill();g.stroke()}}
     // colour bar
-    const bx=w-cbW+6,by=cy-S,bh=2*S;for(let k=0;k<bh;k++){g.fillStyle=rgb(wvColor(1-k/bh));g.fillRect(bx,by+k,16,1.5)}
-    g.strokeStyle=css("--ink");g.strokeRect(bx,by,16,bh);g.fillStyle=css("--ink");g.textAlign="left";g.textBaseline="middle";g.font="11px "+css("--mono");
+    const bx=w-cbW+6,by=8,bh=2*S;for(let k=0;k<bh;k++){g.fillStyle=rgb(colorOf(hi-(k/bh)*(hi-lo)));g.fillRect(bx,by+k,16,1.5)}
+    g.strokeStyle=css("--ink");g.lineWidth=1;g.strokeRect(bx,by,16,bh);g.fillStyle=css("--ink");g.textAlign="left";g.textBaseline="middle";g.font="11px "+css("--mono");
     ticks(lo,hi,6).forEach(v=>{const y=by+(1-(v-lo)/(hi-lo))*bh;g.fillRect(bx+16,y,4,1);g.fillText(v.toFixed(2),bx+22,y)});
-    g.textBaseline="bottom";g.fillText(hi.toFixed(2)+" °C",bx-6,by-2);g.textBaseline="top";g.fillText(lo.toFixed(2)+" °C",bx-6,by+bh+2)}
+    g.textBaseline="bottom";g.fillText(fx(hi)+" °C",bx-6,by-1>10?by-1:by+10);g.textBaseline="top";g.fillText(fx(lo)+" °C",bx-6,by+bh+2)}
   // ---- cross-section ----
   const ang=(+$("#wvAng").value||0)*Math.PI/180,xsX=[],xsY=[],Rx=R-Math.max(0,+$("#wvXEdge").value||0);if(f)for(let s2=-Rx;s2<=Rx+1e-9;s2+=1){xsX.push(s2);xsY.push(f(s2*Math.cos(ang),s2*Math.sin(ang)))}
   $("#wvXs").innerHTML=xsY.length?statsHTML(rowStats(xsY)):'<span class="hint">needs positions</span>';
   const mc=$("#cvWvMini");if(mc.clientWidth){const{g,w,h}=setup(mc),S=Math.min(w,h)/2-4,cx=w/2,cy=h/2;g.strokeStyle=css("--ink");g.beginPath();g.arc(cx,cy,S,0,7);g.stroke();
     g.fillStyle=css("--bad");P.forEach(p=>{g.fillRect(cx+p[0]/R*S-1.2,cy-p[1]/R*S-1.2,2.4,2.4)});
     g.strokeStyle=css("--ink");g.beginPath();g.moveTo(cx-Math.cos(ang)*S,cy+Math.sin(ang)*S);g.lineTo(cx+Math.cos(ang)*S,cy-Math.sin(ang)*S);g.stroke()}
-  if(xsY.length)chart($("#cvWvX"),[{x:xsX,y:xsY,color:css("--ink"),width:1,points:true,r:2.4,pointColor:i=>rgb(wvColor((xsY[i]-lo)/(hi-lo)))}],{xlabel:"position along section (mm)",ylabel:"°C",hlines:[{y:lo,color:"transparent"},{y:hi,color:"transparent"}]});
+  if(xsY.length)chart($("#cvWvX"),[{x:xsX,y:xsY,color:css("--ink"),width:1,points:true,r:2.4,pointColor:i=>rgb(colorOf(xsY[i]))}],{xlabel:"position along section (mm)",ylabel:"°C",hlines:[{y:lo,color:"transparent"},{y:hi,color:"transparent"}]});
   else setup($("#cvWvX"));
+  // ---- radial / angular distribution ----
+  if(P.length>=2){const c0=$("#wvDistC").value==="com"?com:[0,0];
+    const rr=P.map(p=>Math.hypot(p[0]-c0[0],p[1]-c0[1])),nb=8,sm=new Float64Array(nb),cn=new Float64Array(nb),rmax=Math.max(...rr)||1;
+    rr.forEach((r2,i)=>{const b=Math.min(nb-1,Math.floor(r2/rmax*nb));sm[b]+=V[i];cn[b]++});const bx=[],by=[];for(let b=0;b<nb;b++)if(cn[b]){bx.push((b+.5)*rmax/nb);by.push(sm[b]/cn[b])}
+    chart($("#cvWvRad"),[{x:rr,y:V,noLine:true,points:true,r:3,color:css("--op"),pointColor:i=>rgb(colorOf(V[i]))},{x:bx,y:by,color:css("--ink"),width:2}],{xlabel:`distance from ${$("#wvDistC").value==="com"?"center of mass":"center"} (mm)`,ylabel:"°C"});
+    const outer=P.map((p,i)=>[p,V[i]]).filter(([p])=>Math.hypot(p[0],p[1])>=R*.5).map(([p,v])=>[((Math.atan2(p[1],p[0])*180/Math.PI)+360)%360,v]).sort((x,y)=>x[0]-y[0]);
+    if(outer.length>1)chart($("#cvWvAng"),[{x:outer.map(q=>q[0]),y:outer.map(q=>q[1]),color:css("--an"),width:1.2,points:true,r:3,pointColor:i=>rgb(colorOf(outer[i][1]))}],{xlabel:"angle (°, counter-clockwise from 3 o'clock)",ylabel:"°C"});
+    else setup($("#cvWvAng"))}
+  else{setup($("#cvWvRad"));setup($("#cvWvAng"))}
   // ---- histogram ----
   const hv=$("#wvHsrc").value==="map"&&grid.length?grid.map(q=>q[2]):vals,hs=rowStats(hv),bw=Math.max(1e-6,(+$("#wvRes").value)*hs.sigma);
   const hc=$("#cvWvH");if(hc.clientWidth&&!(hs.sigma>1e-4)){const{g}=setup(hc);g.fillStyle=css("--muted");g.font="13px "+css("--sans");g.fillText("All values are the same: no spread to plot.",8,24)}
@@ -1493,12 +1586,21 @@ function renderWV(){
     const pdf=x=>hv.length*bw*Math.exp(-((x-hs.mean)**2)/(2*hs.sigma**2))/(hs.sigma*Math.sqrt(2*Math.PI)),ymax=Math.max(cmax,pdf(hs.mean))*1.08;
     const X=v=>L+(v-hs.min)/(nb*bw)*(w-L-Rr),Y=v=>T+(1-v/ymax)*(h-T-Bm);
     g.fillStyle=css("--muted");g.font="10.5px "+css("--mono");g.strokeStyle=css("--grid");
-    ticks(0,ymax,4).forEach(v=>{const y=Y(v);g.beginPath();g.moveTo(L,y);g.lineTo(w-Rr,y);g.stroke();g.textAlign="right";g.textBaseline="middle";g.fillText(v,L-4,y)});
-    cnt.forEach((n2,k)=>{const x0=X(hs.min+k*bw),x1=X(hs.min+(k+1)*bw);g.fillStyle=rgb(wvColor((hs.min+(k+.5)*bw-lo)/(hi-lo)));g.fillRect(x0+1,Y(n2),x1-x0-2,Y(0)-Y(n2))});
+    ticks(0,ymax,4).forEach(v=>{const y=Y(v);g.beginPath();g.moveTo(L,y);g.lineTo(w-Rr,y);g.stroke();g.textAlign="right";g.textBaseline="middle";g.fillText(String(Math.round(v)),L-4,y)});
+    cnt.forEach((n2,k)=>{const x0=X(hs.min+k*bw),x1=X(hs.min+(k+1)*bw);g.fillStyle=rgb(colorOf(hs.min+(k+.5)*bw));g.fillRect(x0+1,Y(n2),x1-x0-2,Y(0)-Y(n2))});
     g.strokeStyle=css("--ink");g.lineWidth=1.2;g.beginPath();for(let k=0;k<=80;k++){const x=hs.min+k/80*nb*bw,px=X(x),py=Y(pdf(x));k?g.lineTo(px,py):g.moveTo(px,py)}g.stroke();
-    g.fillStyle=css("--muted");g.textAlign="center";g.textBaseline="top";[hs.min,hs.mean,hs.max].forEach(v=>g.fillText(v.toFixed(2),X(v),h-Bm+6))}
+    g.fillStyle=css("--muted");g.textAlign="center";g.textBaseline="top";[hs.min,hs.mean,hs.max].forEach(v=>g.fillText(fx(v),X(v),h-Bm+6))}
 }
-["#wvA","#wvB","#wvMath","#wvMode","#wvEdge","#wvSrc","#wvScale","#wvUp","#wvLo","#wvShowSites","#wvShowVals","#wvShowCom","#wvAng","#wvXEdge","#wvHsrc","#wvRes","#wvR0","#wvZone","#wvRings","#wvQrot"].forEach(x=>$(x).addEventListener("input",renderWV));
+function draw3DWV(g,w,h,f,lo,hi,P,V,colorOf){
+  const M=46,S=Math.min(w/2.3,h/1.7),cx=w/2,cy=h*.6,H=S*.42,az=Math.PI/4;
+  const pr=(x,y,z)=>{const xr=x*Math.cos(az)-y*Math.sin(az),yr=x*Math.sin(az)+y*Math.cos(az);return[cx+xr/R*S,cy+yr/R*S*.5-z,yr]};
+  const zz=v=>Math.max(0,Math.min(1,(v-lo)/(hi-lo)))*H,quads=[];
+  for(let j=0;j<M;j++)for(let i=0;i<M;i++){const x0=-R+i*2*R/M,y0=-R+j*2*R/M,x1=x0+2*R/M,y1=y0+2*R/M,xc=(x0+x1)/2,yc=(y0+y1)/2;if(xc*xc+yc*yc>R*R)continue;
+    const c=[[x0,y0],[x1,y0],[x1,y1],[x0,y1]].map(p=>pr(p[0],p[1],zz(f(p[0],p[1])))),v=f(xc,yc);quads.push({c,v,d:c.reduce((a,b)=>a+b[2],0)})}
+  quads.sort((a,b)=>b.d-a.d);g.strokeStyle=css("--line");g.beginPath();g.ellipse(cx,cy,S,S*.5,0,0,7);g.stroke();
+  for(const q of quads){g.fillStyle=rgb(colorOf(q.v));g.beginPath();q.c.forEach((p,k)=>k?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]));g.closePath();g.fill();g.strokeStyle="rgba(0,0,0,.15)";g.lineWidth=.4;g.stroke()}
+  g.fillStyle=css("--muted");g.font="11px "+css("--mono");g.textAlign="left";g.textBaseline="top";g.fillText("3-D surface · height = temperature",8,4)}
+["#wvA","#wvB","#wvMath","#wvMode","#wvEdge","#wvSrc","#wvScale","#wvUp","#wvLo","#wvShowSites","#wvShowVals","#wvShowCom","#wvAng","#wvXEdge","#wvHsrc","#wvRes","#wvR0","#wvZone","#wvRings","#wvQrot","#wvView","#wvDens","#wvInterp","#wvFilt","#wvFiltMode","#wvFiltKind","#wvFiltK","#wvFiltU","#wvFiltL","#wvAxes","#wvRuler","#wvDie","#wvDieX","#wvDieY","#wvOffX","#wvOffY","#wvDig","#wvShow1s","#wvShowPct","#wvSAng","#wvSOff","#wvA1","#wvA2","#wvDistC"].forEach(x=>$(x).addEventListener("input",renderWV));
 $("#wvB").addEventListener("change",()=>{if($("#wvB").value&&$("#wvMath").value==="A")$("#wvMath").value="A-B";renderWV()});
 $("#dvWhole").addEventListener("click",()=>{const r=current;$("#dvEndOn").checked=true;$("#dvEnd").disabled=false;$("#dvEnd").value=+r.t[r.t.length-1].toFixed(2);setStart(r.t[0]);log(`Statistics now average each sensor over the whole run (${r.t[0]}–${r.t[r.t.length-1]} s).`)});
 $("#dvDdof").addEventListener("change",()=>{$("#wvDdof").value=$("#dvDdof").value;$("#wvDdof").dispatchEvent(new Event("change"));renderViewer()});
@@ -1514,7 +1616,7 @@ $("#wvPosFile").addEventListener("change",e=>{const file=e.target.files[0];if(!f
   const prev=current;targets.forEach(r=>{current=r;loadPositions(fr.result,file.name)});current=prev;renderWV()};fr.readAsText(file);e.target.value=""});
 
 /* ---- wafer size (default 300 mm, adjustable) ---- */
-const zoneRaw={rings:[70,90,120],r0:75}; // unrounded zone edges in mm, so resizing never drifts
+const zoneRaw={rings:[70,90,120],r0:0}; // unrounded zone edges in mm, so resizing never drifts
 $("#wvRings").addEventListener("change",()=>{zoneRaw.rings=$("#wvRings").value.split(/[ ,;]+/).map(Number).filter(v=>v>0)});
 $("#wvR0").addEventListener("change",()=>{zoneRaw.r0=+$("#wvR0").value||0});
 function setWaferSize(mm,src){mm=Math.max(25,Math.min(600,+mm||300));const old=2*R;if(Math.abs(mm-old)<1e-9)return syncSize();

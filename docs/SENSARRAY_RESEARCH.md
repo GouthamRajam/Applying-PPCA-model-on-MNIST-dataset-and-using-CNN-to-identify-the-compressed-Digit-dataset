@@ -104,3 +104,14 @@ Exact definitions inside KLA's Match Analyzer, Profile Comparison, Recipe Flow C
 - US 11,784,071 (wafer temperature calibration and data interpolation): https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/11784071
 - US 6,922,603 (quantifying wafer uniformity patterns): https://patents.google.com/patent/US6922603
 - Western Electric rules / control limits: https://www.symestic.com/en-us/what-is/control-limits
+
+## 5. Wafer Viewer behaviour (from Lam Research patent US7945085B2, via search excerpts)
+- Interpolation: inverse distance, weight ∝ 1/rⁿ; Soft n = 2, Harsh n = 4, Normal = n from the number of sites (fewer sites → higher n).
+- Point density: Low 50×50, Normal 100×100, High 200×200 interpolation grid.
+- Statistics: mean, 3-sigma (3 × standard deviation about the mean), range; scale limits Max/Min, 3-sigma or user.
+- Warning / control limits: sites above the upper or below the lower limit are highlighted; 1-sigma display mode.
+- Spatial statistics: center-to-edge, side-to-side and annular selections; the selection is the "black region", the rest the "white region".
+- Radial / angular distribution measured from the geometric center or the center of mass.
+- Wafer collections: the first wafer sets the master site pattern; other wafers are interpolated onto it for layer math.
+- Not found publicly: the exact center-of-mass formula ("Bias: Distance") and the exact "Normal" n formula.
+Source: https://patents.google.com/patent/US7945085B2/en
