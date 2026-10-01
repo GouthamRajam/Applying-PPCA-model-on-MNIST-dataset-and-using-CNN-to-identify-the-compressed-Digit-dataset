@@ -1135,7 +1135,8 @@ $("#btnCloseMap").addEventListener("click",()=>{dv.mapOpen=false;stopMovie();ren
 $$(".sidetabs button").forEach(b=>b.addEventListener("click",()=>toggleDrawer(b.dataset.drawer)));
 function toggleDrawer(name,force){dv.drawer=force?name:dv.drawer===name?null:name;$$(".sidetabs button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.drawer===dv.drawer)));
   ["sensors","radial","movie"].forEach(n=>$("#dr-"+n).hidden=dv.drawer!==n);if(dv.drawer==="sensors")renderSensGrid();renderMap()}
-function renderSensGrid(){$("#sensGrid").innerHTML=current.ids.map(id=>`<label><input type="checkbox" data-sid="${id}" ${dv.excluded.has(id)?"":"checked"}> S${id}</label>`).join("")}
+const sensLabel=(run,id)=>run.labels?run.labels[id-1]:"S"+id;
+function renderSensGrid(){$("#sensGrid").innerHTML=current.ids.map(id=>`<label title="${esc(sensLabel(current,id))}"><input type="checkbox" data-sid="${id}" ${dv.excluded.has(id)?"":"checked"}> ${esc(sensLabel(current,id))}</label>`).join("")}
 $("#sensGrid").addEventListener("change",e=>{const id=+e.target.dataset.sid;if(e.target.checked)dv.excluded.delete(id);else dv.excluded.add(id);drawDVChart();renderDVStats();renderMap()});
 $("#selAll").addEventListener("click",()=>{dv.excluded.clear();renderSensGrid();drawDVChart();renderDVStats();renderMap()});
 $("#selNone").addEventListener("click",()=>{current.ids.forEach(i=>dv.excluded.add(i));renderSensGrid();drawDVChart();renderDVStats();renderMap()});
@@ -1237,40 +1238,58 @@ $("#menubar").addEventListener("click",e=>{const a=e.target.closest("[data-act]"
 function csvText(){const r=current,m=r.meta||{},lines=[];
   lines.push(`# Wafer HWID=${m.hwid||""}`,`# Fab Wafer ID=${m.fabId||""}`,`# Mission date=${m.date||""}`,`# Recipe=${m.recipe||""}`);
   Object.entries(r.tags).forEach(([k,v])=>lines.push(`# ${k}=${v}`));
-  lines.push(["Time (s)"].concat(r.ids.map(i=>"S"+i)).join(","));
+  lines.push(["Time (s)"].concat(r.ids.map(i=>sensLabel(r,i))).join(","));
   r.t.forEach((t,i)=>lines.push([t.toFixed(3)].concat(r.T[i].map(v=>v.toFixed(3))).join(",")));return lines.join("\n")}
 function exportCSV(){const m=current.meta||{},name=`C:\\LAM SensArray\\${m.hwid||"wafer"}_${current.tags.chamber||"PM"}_${(m.date||"").replace(/[\/: ,]+/g,"-")}.csv`,txt=csvText();
   dialog("Export to .csv",`<p style="margin:0">Save as <code>${esc(name)}</code></p><p class="hint" style="margin:0">This demo page can't write files. Copy the text below and paste it into a new .csv file.</p><textarea id="csvOut" readonly>${esc(txt)}</textarea>`,
     [{label:"Close"},{label:"Copy CSV",primary:true,fn:()=>{const ta=$("#csvOut");if(navigator.clipboard)navigator.clipboard.writeText(txt).then(()=>log("CSV copied to clipboard.","g"),()=>{ta.focus();ta.select()});else{ta.focus();ta.select()}return false}}])}
 $("#csvFile").addEventListener("change",e=>{const file=e.target.files[0];if(!file)return;const fr=new FileReader();fr.onload=()=>{try{loadCSV(fr.result,file.name)}catch(err){log("Could not read "+file.name+": "+err.message,"e")}};fr.readAsText(file);e.target.value=""});
-function loadCSV(text,name){const lines=text.split(/\r?\n/).filter(l=>l.trim()),tags={};const rows=[];let xs=null,ys=null;
-  const num=c=>{c=c.trim().replace(/^"|"$/g,"");return c===""?NaN:Number(c)}; // blank cell = missing, never 0
+/* ---- CSV import: parse, then let the user confirm which columns are sensors ---- */
+const NOT_SENSOR=/time|sec|sample|index|^no\.?$|^#|date|clock|step|batt|volt|ambient|board|ref|status|count/i;
+function loadCSV(text,name){const lines=text.split(/\r?\n/).filter(l=>l.trim()),tags={};const rows=[];let xs=null,ys=null,header=null;
+  const num=c=>{c=(c||"").trim().replace(/^"|"$/g,"");return c===""?NaN:Number(c)}; // blank cell = missing, never 0
   for(const l of lines){if(l.startsWith("#")){const[k,...v]=l.slice(1).split("=");if(v.length)tags[k.trim()]=v.join("=").trim();continue}
     const cells=l.split(/[,;\t]/);const lab=cells[0].toLowerCase().replace(/[^a-z]/g,"");const rest=cells.slice(1).map(num);
     if(lab==="x"||lab==="xmm"||lab==="xpos"){xs=rest;continue}
     if(lab==="y"||lab==="ymm"||lab==="ypos"){ys=rest;continue}
-    const nums=cells.map(num);if(isFinite(nums[0])&&nums.slice(1).filter(isFinite).length>=2)rows.push(nums)}
+    const nums=cells.map(num);if(isFinite(nums[0])&&nums.slice(1).filter(isFinite).length>=2)rows.push(nums);
+    else if(!rows.length&&cells.length>2)header=cells.map(c=>c.trim().replace(/^"|"$/g,""))}
   if(rows.length<1)throw new Error("no numeric rows found");
-  // keep only sensor columns that hold data; blank columns (e.g. a trailing comma) are dropped
-  const width=Math.max(...rows.map(r=>r.length))-1,keep=[],dropped=[];
-  for(let j=1;j<=width;j++){const v=rows.map(r=>r[j]),ok=v.filter(isFinite).length;(ok>=rows.length*0.5?keep:dropped).push(j)}
-  const T=rows.map(r=>keep.map(j=>r[j]));
-  for(let c=0;c<keep.length;c++){let last=NaN;for(let i=0;i<T.length;i++){if(isFinite(T[i][c]))last=T[i][c];else T[i][c]=last}
-    let first=T.find(r=>isFinite(r[c]));for(let i=0;i<T.length&&!isFinite(T[i][c]);i++)T[i][c]=first?first[c]:0}
-  const k=keep.length,ids=keep.map((_,i)=>i+1);
-  const run={t:new Float64Array(rows.map(r=>r[0])),T,ids,fromFile:true,tags:{tool:tags.tool||"",chamber:tags.chamber||"",recipe:tags.recipe||name},
+  const width=Math.max(...rows.map(r=>r.length),header?header.length:0);
+  const cols=[];for(let j=0;j<width;j++){const v=rows.map(r=>r[j]),f=v.filter(isFinite),nm=header&&header[j]?header[j]:(j?"Column "+(j+1):"Column 1");
+    const mn=f.length?Math.min(...f):NaN,mx=f.length?Math.max(...f):NaN,mean=f.length?avg(f):NaN,inc=f.length>1&&f.every((x,i)=>!i||x>=f[i-1])&&mx>mn;
+    let why="";if(f.length<rows.length*.5)why="blank";else if(f.every(x=>x===0))why="always 0";else if(NOT_SENSOR.test(nm))why="name";else if(inc&&j<3)why="counts up (time/index)";else if(mx-mn>0&&mean<-50||mean>1500)why="out of range";
+    cols.push({j,nm,n:f.length,mn,mx,mean,why})}
+  // time column: first column whose name says time, else the first column
+  let tj=cols.findIndex(c=>/time|sec/i.test(c.nm));if(tj<0)tj=0;
+  showImport({name,rows,cols,tj,xs,ys,tags})}
+function showImport(d){const sensorCols=d.cols.filter(c=>c.j!==d.tj);
+  const body=`<p class="hint" style="margin:0">Tick the columns that are temperature sensors. Columns that are blank, always 0, count up, or are named like time/index/battery are unticked for you.</p>
+    <div class="row" style="margin:0"><label for="impTime"><b>Time column</b></label><select id="impTime">${d.cols.map(c=>`<option value="${c.j}" ${c.j===d.tj?"selected":""}>${esc(c.nm)}</option>`).join("")}</select>
+      <button class="btn" id="impAll">Tick all</button><button class="btn" id="impNone">Untick all</button><b id="impCount" style="margin-left:auto"></b></div>
+    <div class="tablewrap" style="max-height:340px;overflow:auto"><table class="tmpl"><tr><th></th><th>Column</th><th class="n">Min</th><th class="n">Max</th><th class="n">Mean</th><th>Note</th></tr>
+    ${d.cols.map(c=>`<tr data-row="${c.j}" ${c.j===d.tj?"hidden":""}><td><input type="checkbox" data-col="${c.j}" ${c.why?"":"checked"} aria-label="${esc(c.nm)} is a sensor"></td><td>${esc(c.nm)}</td><td class="n">${fmt(c.mn)}</td><td class="n">${fmt(c.mx)}</td><td class="n">${fmt(c.mean)}</td><td style="color:var(--warn)">${c.why?"not a sensor? ("+c.why+")":""}</td></tr>`).join("")}</table></div>`;
+  dialog(`Import ${d.name}`,body,[{label:"Cancel"},{label:"Import",primary:true,fn:()=>{const picked=[...$("#dlgBody").querySelectorAll("[data-col]")].filter(x=>x.checked&&!x.closest("tr").hidden).map(x=>+x.dataset.col);
+    if(!picked.length){log("Pick at least one sensor column.","e");return false}buildRun(d,+$("#impTime").value,picked)}}]);
+  const upd=()=>{const n=[...$("#dlgBody").querySelectorAll("[data-col]")].filter(x=>x.checked&&!x.closest("tr").hidden).length;$("#impCount").textContent=`${n} sensors selected`};
+  $("#dlgBody").addEventListener("change",e=>{if(e.target.id==="impTime"){const tj=+e.target.value;$$("#dlgBody [data-row]").forEach(r=>r.hidden=+r.dataset.row===tj)}upd()});
+  $("#impAll").addEventListener("click",()=>{$$("#dlgBody [data-col]").forEach(x=>x.checked=true);upd()});
+  $("#impNone").addEventListener("click",()=>{$$("#dlgBody [data-col]").forEach(x=>x.checked=false);upd()});upd()}
+function buildRun(d,tj,picked){const{rows,name,tags,xs,ys}=d;
+  const T=rows.map(r=>picked.map(j=>r[j]));
+  for(let c=0;c<picked.length;c++){let last=NaN;for(let i=0;i<T.length;i++){if(isFinite(T[i][c]))last=T[i][c];else T[i][c]=last}
+    const first=T.find(r=>isFinite(r[c]));for(let i=0;i<T.length&&!isFinite(T[i][c]);i++)T[i][c]=first?first[c]:0}
+  const k=picked.length,ids=picked.map((_,i)=>i+1);let t=rows.map(r=>r[tj]);if(!t.every(isFinite))t=rows.map((_,i)=>i);
+  const run={t:new Float64Array(t),T,ids,labels:picked.map(j=>d.cols[j].nm),fromFile:true,tags:{tool:tags.tool||"",chamber:tags.chamber||"",recipe:tags.recipe||name},
     meta:{hwid:tags["Wafer HWID"]||name.replace(/\.[^.]+$/,""),fabId:tags["Fab Wafer ID"]||"",date:tags["Mission date"]||"",recipe:tags.Recipe||"Loaded from "+name}};
   if(run.t.length===1){run.t=new Float64Array([0,1]);run.T=[run.T[0],run.T[0].slice()]}
-  if(xs&&ys){const pos={};keep.forEach((j,i)=>{const x=xs[j-1],y=ys[j-1];if(isFinite(x)&&isFinite(y))pos[ids[i]]=[x,y]});
+  if(xs&&ys){const pos={};picked.forEach((j,i)=>{const x=xs[j-1],y=ys[j-1];if(isFinite(x)&&isFinite(y))pos[ids[i]]=[x,y]});
     if(Object.keys(pos).length>=3){run.pos=normPos(pos);posLib[k]=run.pos;log(`Sensor positions read from ${name}.`,"g")}}
   if(!run.pos&&posLib[k]){run.pos=posLib[k];log(`Using the ${k}-sensor positions loaded earlier.`,"g")}
   setCurrent(run,"File: "+name);
-  if(dropped.length)log(`Ignored ${dropped.length} empty column${dropped.length>1?"s":""} (blank cells, e.g. a trailing comma). They are not sensors.`,"w");
-  // a sensor stuck at exactly 0 for the whole run is not a temperature: leave it out, but let the user put it back
-  const dead=ids.filter((id,c)=>T.every(r=>r[c]===0));
-  dead.forEach(id=>dv.excluded.add(id));
-  if(dead.length)log(`Sensor${dead.length>1?"s":""} ${dead.map(i=>"S"+i).join(", ")} read 0.00 the whole run and ${dead.length>1?"are":"is"} left out of statistics. Re-include in Wafer View → Sensor Selector.`,"w");
-  log(`Loaded ${name}: ${run.t.length} samples × ${k} sensors.`,"g");
+  const skipped=d.cols.filter(c=>c.j!==tj&&!picked.includes(c.j));
+  log(`Loaded ${name}: ${run.t.length} samples × ${k} sensors (time = "${d.cols[tj].nm}").`,"g");
+  if(skipped.length)log(`Not used as sensors: ${skipped.map(c=>c.nm).join(", ")}.`,"w");
   if(!run.pos)log("No sensor positions in this file. Map is hidden until you use File → Load sensor positions….","w");
   renderViewer()}
 function normPos(map){const v=Object.values(map).flat(),mx=Math.max(...v.map(Math.abs)),mn=Math.min(...v);
