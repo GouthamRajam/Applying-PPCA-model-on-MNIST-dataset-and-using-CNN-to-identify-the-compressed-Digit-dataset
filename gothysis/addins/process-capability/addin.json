@@ -1,0 +1,9 @@
+{
+  "id": "com.gothysis.process-capability",
+  "name": "Process Capability",
+  "version": "1.0.0",
+  "author": "Gothysis",
+  "description": "Cp, Cpk, Pp, Ppk with confidence intervals, % out of spec and a histogram with spec limits.",
+  "main": "main.js",
+  "apiVersion": 1
+}
