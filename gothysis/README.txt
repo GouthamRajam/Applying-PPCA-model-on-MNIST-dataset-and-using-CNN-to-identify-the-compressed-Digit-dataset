@@ -33,6 +33,16 @@ ANALYSES
                   variance, log-likelihood, AIC / BIC for every q, latent space plot, Save latent
                   (adds z columns and the reconstructed columns).
 
+ADD-INS
+  Add-ins add your own analyses and tools (for example company-specific reports). Click
+  Add-Ins -> Install add-in... and choose a .gaddin file, or drag it onto the window. Installed
+  add-ins load every time Gothysis starts; turn them off or remove them in the same window.
+  They are kept in %LOCALAPPDATA%\Gothysis\addins. The Add-ins folder next to Gothysis.exe has
+  an example: Process Capability.gaddin (Cp, Cpk, Pp, Ppk, % out of spec).
+  Only install add-ins from people you trust: they run their own code inside Gothysis.
+  JMP add-ins (.jmpaddin) are written in JSL, which only JMP can run. Gothysis shows what is
+  inside one (menu items, scripts) so it can be converted into a .gaddin.
+
 SAVING
   Save CSV saves the data table, including saved score/latent columns. Each chart has PNG and
   SVG buttons; tables have CSV buttons. Files go to your Downloads folder.

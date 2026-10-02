@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const version = "1.0.0"
+const version = "1.1.0"
 const port = 47631 // fixed, so the window's saved settings (theme) stay with the same origin
 
 //go:embed app
@@ -72,9 +72,12 @@ func handler() http.Handler {
 	files := http.FileServer(http.FS(sub))
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/alive", alive)
+	mux.HandleFunc("/api/addins", addinsAPI)
+	mux.HandleFunc("/api/addins/", addinsAPI)
+	mux.HandleFunc("/addins/", addinFiles)
 	mux.HandleFunc("/api/version", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"name":"Gothysis","version":%q}`, version)
+		fmt.Fprintf(w, `{"name":"Gothysis","version":%q,"addinApiVersion":%d}`, version, addinAPIVersion)
 	})
 	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")

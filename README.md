@@ -63,3 +63,7 @@ node --test test/*.test.js    # statistics tests only
 ```
 
 `app/index.html` also works opened straight in a browser.
+
+Add-ins (`.gaddin`, a zip with `addin.json` + JavaScript) add analyses and tools; see
+[gothysis/docs/ADDINS.md](gothysis/docs/ADDINS.md). `gothysis/addins/process-capability/` is an
+example. JMP `.jmpaddin` files are recognised and their contents reported, since JSL needs JMP.

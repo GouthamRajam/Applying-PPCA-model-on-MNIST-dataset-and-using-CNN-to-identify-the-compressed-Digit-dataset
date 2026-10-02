@@ -124,8 +124,9 @@ dialog .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10
   <button class="btn" id="pasteBtn">Paste data</button>
   <button class="btn" id="sampleBtn">Sample: Iris</button>
   <button class="btn" id="saveBtn" disabled title="Save the data table, including any saved columns, as CSV">Save CSV</button>
+  <button class="btn" id="addinsBtn" title="Install and manage add-ins">Add-Ins</button>
   <button class="btn" id="themeBtn" title="Switch light / dark">◐</button>
-  <input type="file" id="fileInput" accept=".csv,.tsv,.txt,.dat,.xlsx" hidden>
+  <input type="file" id="fileInput" accept=".csv,.tsv,.txt,.dat,.xlsx,.gaddin,.jmpaddin" hidden>
 </header>
 <main>
   <aside>
@@ -140,12 +141,14 @@ dialog .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10
       <button data-view="fit">Fit Y by X</button>
       <button data-view="corr">Correlations</button>
       <button data-view="pca">PCA &amp; PPCA</button>
+      <button data-view="addins">Add-Ins</button>
     </nav>
     <section class="view active" id="view-data"></section>
     <section class="view" id="view-dist"></section>
     <section class="view" id="view-fit"></section>
     <section class="view" id="view-corr"></section>
     <section class="view" id="view-pca"></section>
+    <section class="view" id="view-addins"></section>
   </div>
 </main>
 <dialog id="pasteDlg">
@@ -154,7 +157,7 @@ dialog .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10
   <textarea id="pasteText" spellcheck="false" placeholder="Height	Weight	Group&#10;172	68	A&#10;181	80	B"></textarea>
   <div class="row"><button class="btn" id="pasteCancel">Cancel</button><button class="btn primary" id="pasteOk">Load</button></div>
 </dialog>
-<div id="drop">Drop a .csv, .tsv or .xlsx file to open it</div>
+<div id="drop">Drop a .csv, .tsv or .xlsx file to open it, or a .gaddin file to install it</div>
 <div id="toast"></div>
 <div id="tip"></div>
 <script src="stats.js"></script>
@@ -433,6 +436,7 @@ function loadTable(t) {
   renderAll();
 }
 async function openFile(file) {
+  if (/\.(gaddin|jmpaddin)$/i.test(file.name) && window.installAddinFile) return window.installAddinFile(file);
   try {
     let t;
     if (/\.xlsx$/i.test(file.name)) {
@@ -493,7 +497,7 @@ function renderAll() { renderColumns(); renderView(activeView); }
 function renderView(v) {
   const host = $("#view-" + v);
   if (!table) { host.innerHTML = emptyHtml(); bindEmpty(host); return; }
-  try { ({ data: renderData, dist: renderDist, fit: renderFit, corr: renderCorr, pca: renderPca })[v](host); }
+  try { ({ data: renderData, dist: renderDist, fit: renderFit, corr: renderCorr, pca: renderPca, addins: h => window.renderAddins(h) })[v](host); }
   catch (e) { console.error(e); host.insertAdjacentHTML("beforeend", `<div class="card err">${esc(e.message || e)}</div>`); }
 }
 function emptyHtml() {
@@ -1003,5 +1007,6 @@ if (location.protocol.startsWith("http") && /^(127\.0\.0\.1|localhost)$/.test(lo
 }
 renderAll();
 </script>
+<script src="addins.js"></script>
 </body>
 </html>
