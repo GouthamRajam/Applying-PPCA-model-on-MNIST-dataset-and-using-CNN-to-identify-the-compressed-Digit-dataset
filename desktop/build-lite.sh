@@ -5,6 +5,9 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 node prepare-app.js lite/app/index.html
+cp brand/icon-32.png brand/icon-256.png lite/app/
+# Windows resources: the Senson logo as the .exe icon, plus file version info.
+(cd lite && go run github.com/tc-hib/go-winres@v0.3.3 make --in winres.json --arch amd64)
 (cd lite && go vet ./... && go test ./... && \
   GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -H windowsgui" -o ../dist/lite/Senson.exe .)
 cp lite/README.txt dist/lite/README.txt

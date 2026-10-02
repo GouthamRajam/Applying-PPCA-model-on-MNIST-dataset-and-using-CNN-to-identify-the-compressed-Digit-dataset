@@ -50,7 +50,7 @@ function send(ch, data) { if (win && !win.isDestroyed()) win.webContents.send(ch
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1500, height: 950, title: "Senson", backgroundColor: "#e9edf1",
+    width: 1500, height: 950, title: "Senson", backgroundColor: "#e9edf1", icon: path.join(__dirname, "icon.png"),
     webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   win.setMenuBarVisibility(false);

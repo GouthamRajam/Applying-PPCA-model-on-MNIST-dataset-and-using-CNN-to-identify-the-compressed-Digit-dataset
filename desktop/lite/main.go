@@ -29,6 +29,12 @@ var pageHTML string
 //go:embed bridge.js
 var bridgeJS string
 
+//go:embed app/icon-32.png
+var icon32 []byte
+
+//go:embed app/icon-256.png
+var icon256 []byte
+
 type Settings map[string]any
 
 var (
@@ -266,6 +272,7 @@ func page(w http.ResponseWriter, r *http.Request) {
 	bridge := "<script>" + strings.Replace(bridgeJS, "__TOKEN__", token, 1) + "</script>"
 	// The page is a body fragment (as published); give it a standards-mode document around it.
 	html := `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
+		`<link rel="icon" sizes="32x32" href="/icon-32.png"><link rel="icon" sizes="256x256" href="/icon-256.png">` +
 		`<meta name="viewport" content="width=device-width,initial-scale=1">` + bridge + "</head><body>" + pageHTML + "</body></html>"
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
@@ -301,9 +308,17 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/", api)
 	mux.HandleFunc("/", page)
+	for name, b := range map[string][]byte{"/icon-32.png": icon32, "/icon-256.png": icon256} {
+		b := b
+		mux.HandleFunc(name, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "image/png")
+			w.Write(b)
+		})
+	}
 	go http.Serve(ln, mux)
 	startWatcher()
 	go linkLoop()
+	go brandWindows()
 
 	url := fmt.Sprintf("http://127.0.0.1:%d/?t=%s", port, token)
 	if os.Getenv("SENSON_NOBROWSER") != "" {

@@ -1,0 +1,29 @@
+{
+  "RT_GROUP_ICON": {
+    "APP": {
+      "0000": [
+        "../brand/icon-256.png", "../brand/icon-128.png", "../brand/icon-64.png", "../brand/icon-48.png",
+        "../brand/icon-32.png", "../brand/icon-24.png", "../brand/icon-16.png"
+      ]
+    }
+  },
+  "RT_VERSION": {
+    "#1": {
+      "0000": {
+        "fixed": { "file_version": "1.0.0.0", "product_version": "1.0.0.0" },
+        "info": {
+          "0409": {
+            "CompanyName": "Senson",
+            "FileDescription": "Senson wafer temperature analysis",
+            "FileVersion": "1.0.0",
+            "InternalName": "Senson",
+            "LegalCopyright": "Independent tool; not KLA or Lam software",
+            "OriginalFilename": "Senson.exe",
+            "ProductName": "Senson",
+            "ProductVersion": "1.0.0"
+          }
+        }
+      }
+    }
+  }
+}

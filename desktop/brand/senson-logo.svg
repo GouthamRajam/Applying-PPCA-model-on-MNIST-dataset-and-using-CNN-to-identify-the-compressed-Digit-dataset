@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+<defs>
+  <linearGradient id="bg" gradientUnits="userSpaceOnUse" x1="8" y1="8" x2="248" y2="248">
+    <stop offset="0" stop-color="#0e7490"/><stop offset=".55" stop-color="#6d28d9"/><stop offset="1" stop-color="#be185d"/>
+  </linearGradient>
+  <radialGradient id="heat" cx=".46" cy=".42" r=".62">
+    <stop offset="0" stop-color="#fde047"/><stop offset=".3" stop-color="#fb923c"/>
+    <stop offset=".58" stop-color="#ef4444"/><stop offset=".8" stop-color="#a855f7"/><stop offset="1" stop-color="#22c3e6"/>
+  </radialGradient>
+</defs>
+<rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/>
+<g>
+  <circle cx="128" cy="124" r="90" fill="#fff"/>
+  <circle cx="128" cy="124" r="83" fill="url(#heat)"/>
+  <circle cx="128.0" cy="124.0" r="5.2" fill="#fff" fill-opacity=".92"/><circle cx="128.0" cy="94.0" r="5.2" fill="#fff" fill-opacity=".92"/><circle cx="154.0" cy="109.0" r="5.2" fill="#fff" fill-opacity=".92"/><circle cx="154.0" cy="139.0" r="5.2" fill="#fff" fill-opacity=".92"/><circle cx="128.0" cy="154.0" r="5.2" fill="#fff" fill-opacity=".92"/><circle cx="102.0" cy="139.0" r="5.2" fill="#fff" fill-opacity=".92"/><circle cx="102.0" cy="109.0" r="5.2" fill="#fff" fill-opacity=".92"/><circle cx="142.5" cy="69.9" r="5.2" fill="#fff" fill-opacity=".92"/><circle cx="167.6" cy="84.4" r="5.2" fill="#fff" fill-opacity=".92"/><circle cx="182.1" cy="109.5" r="5.2" fill="#fff" fill-opacity=".92"/><circle cx="182.1" cy="138.5" r="5.2" fill="#fff" fill-opacity=".92"/><circle cx="167.6" cy="163.6" r="5.2" fill="#fff" fill-opacity=".92"/><circle cx="142.5" cy="178.1" r="5.2" fill="#fff" fill-opacity=".92"/><circle cx="113.5" cy="178.1" r="5.2" fill="#fff" fill-opacity=".92"/><circle cx="88.4" cy="163.6" r="5.2" fill="#fff" fill-opacity=".92"/><circle cx="73.9" cy="138.5" r="5.2" fill="#fff" fill-opacity=".92"/><circle cx="73.9" cy="109.5" r="5.2" fill="#fff" fill-opacity=".92"/><circle cx="88.4" cy="84.4" r="5.2" fill="#fff" fill-opacity=".92"/><circle cx="113.5" cy="69.9" r="5.2" fill="#fff" fill-opacity=".92"/>
+  <circle cx="128" cy="214" r="10" fill="url(#bg)"/>
+</g>
+</svg>

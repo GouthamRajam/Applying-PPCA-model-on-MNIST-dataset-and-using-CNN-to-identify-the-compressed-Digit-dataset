@@ -15,6 +15,7 @@ mv "$OUT/electron.exe" "$OUT/Senson.exe"
 rm -f "$OUT/resources/default_app.asar"
 APP="$OUT/resources/app"; mkdir -p "$APP/app"
 cp main.js preload.js watcher.js package.json "$APP/"
+cp brand/icon-256.png "$APP/icon.png"
 node prepare-app.js "$APP/app/index.html"
 cp README-windows.txt "$OUT/README.txt"
 # English UI only: drop the other Chromium locales (~45 MB) so the zip stays under 100 MB.
