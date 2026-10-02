@@ -1,0 +1,1007 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gothysis</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232f6fdb'/%3E%3Cpath d='M7 23V15M12 23V10M17 23V13M22 23V7' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #f4f5f7; --panel: #ffffff; --panel2: #f9fafb; --text: #1b1f24; --muted: #5d6673; --line: #dde1e6;
+  --accent: #2f6fdb; --accent-text: #ffffff; --accent-soft: #e6eefc; --warn: #b54708; --good: #157f3d;
+  --chart-ink: #3a424d; --chart-grid: #e8ebef; --chart-fill: #6b9be8; --chart-fill2: #c9d8f5; --chart-line: #c2410c; --chart-band: rgba(194,65,12,.13);
+  --c1: #2f6fdb; --c2: #e07b00; --c3: #1a9e5c; --c4: #c43a7b; --c5: #7a5af0; --c6: #0e9ab0; --c7: #8c6d1f; --c8: #d23f3f;
+  --heat-pos: 47,111,219; --heat-neg: 210,63,63;
+  --radius: 8px; color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171b; --panel: #1c2026; --panel2: #22272e; --text: #e6e9ee; --muted: #9aa4b1; --line: #313842;
+    --accent: #6a9cf5; --accent-text: #0d1320; --accent-soft: #233350; --warn: #f0a050; --good: #4cc27c;
+    --chart-ink: #c4ccd6; --chart-grid: #2b3139; --chart-fill: #5b8be0; --chart-fill2: #2c3f63; --chart-line: #f08a4b; --chart-band: rgba(240,138,75,.18);
+    --c1: #6a9cf5; --c2: #f5a03d; --c3: #45c588; --c4: #e8709f; --c5: #a38bfa; --c6: #3cc4d6; --c7: #cfae5a; --c8: #f06c6c;
+    --heat-pos: 106,156,245; --heat-neg: 240,108,108; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14171b; --panel: #1c2026; --panel2: #22272e; --text: #e6e9ee; --muted: #9aa4b1; --line: #313842;
+  --accent: #6a9cf5; --accent-text: #0d1320; --accent-soft: #233350; --warn: #f0a050; --good: #4cc27c;
+  --chart-ink: #c4ccd6; --chart-grid: #2b3139; --chart-fill: #5b8be0; --chart-fill2: #2c3f63; --chart-line: #f08a4b; --chart-band: rgba(240,138,75,.18);
+  --c1: #6a9cf5; --c2: #f5a03d; --c3: #45c588; --c4: #e8709f; --c5: #a38bfa; --c6: #3cc4d6; --c7: #cfae5a; --c8: #f06c6c;
+  --heat-pos: 106,156,245; --heat-neg: 240,108,108; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; display: flex; flex-direction: column; }
+button, select, input, textarea { font: inherit; color: inherit; }
+header { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
+header .logo { display: flex; align-items: center; gap: 8px; font-weight: 650; font-size: 16px; letter-spacing: .2px; }
+header .file { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+header .spacer { flex: 1; }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 5px 11px; cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.btn.small { padding: 2px 8px; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: default; }
+main { flex: 1; display: flex; min-height: 0; }
+aside { width: 250px; flex: none; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+aside h3 { margin: 0; padding: 12px 14px 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+.collist { overflow: auto; flex: 1; padding: 0 8px 12px; }
+.colitem { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 5px; }
+.colitem:hover { background: var(--panel2); }
+.colitem .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.type { font-size: 11px; font-weight: 600; border-radius: 4px; padding: 0 5px; cursor: pointer; border: 1px solid var(--line); min-width: 22px; text-align: center; }
+.type.numeric { color: var(--c1); }
+.type.categorical { color: var(--c2); }
+.asidefoot { padding: 10px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+nav.tabs { display: flex; gap: 2px; padding: 8px 16px 0; background: var(--bg); border-bottom: 1px solid var(--line); overflow-x: auto; }
+nav.tabs button { border: 1px solid transparent; border-bottom: none; background: none; padding: 7px 14px; border-radius: 7px 7px 0 0; cursor: pointer; color: var(--muted); white-space: nowrap; }
+nav.tabs button.active { background: var(--panel); border-color: var(--line); color: var(--text); font-weight: 600; margin-bottom: -1px; }
+.view { flex: 1; overflow: auto; padding: 16px; display: none; }
+.view.active { display: block; }
+.roles { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 14px; }
+.roles label.field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+.roles select, .roles input[type=number] { min-width: 150px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); }
+.roles input[type=number] { min-width: 80px; width: 90px; }
+.check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text); }
+.multipick { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+.multipick .box { max-height: 132px; overflow: auto; min-width: 190px; border: 1px solid var(--line); border-radius: 5px; padding: 4px 8px; background: var(--panel); color: var(--text); font-size: 13px; }
+.multipick .links { display: flex; gap: 8px; }
+.multipick .links a { color: var(--accent); cursor: pointer; }
+.results { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; min-width: 0; max-width: 100%; }
+.card h4 { margin: 0 0 8px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.card h4 .tools { margin-left: auto; display: flex; gap: 4px; }
+.card .sub { color: var(--muted); font-size: 12px; margin: -4px 0 8px; }
+.group { width: 100%; }
+.group > h3 { margin: 4px 0 10px; font-size: 15px; }
+table.stat { border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; }
+table.stat th, table.stat td { padding: 3px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+table.stat th:first-child, table.stat td:first-child { text-align: left; }
+table.stat thead th { color: var(--muted); font-weight: 600; font-size: 12px; }
+table.stat td.sig { color: var(--warn); font-weight: 600; }
+table.stat tr.hl td { background: var(--accent-soft); }
+.datawrap { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: auto; max-height: calc(100vh - 190px); }
+table.data { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+table.data th, table.data td { padding: 3px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.data th { position: sticky; top: 0; background: var(--panel2); text-align: left; z-index: 1; }
+table.data td.num { text-align: right; }
+table.data td.miss { color: var(--muted); text-align: center; }
+table.data td.row { color: var(--muted); background: var(--panel2); text-align: right; position: sticky; left: 0; }
+.note { color: var(--muted); font-size: 13px; margin: 8px 0; }
+.empty { color: var(--muted); padding: 40px; text-align: center; }
+.empty h2 { color: var(--text); font-weight: 600; margin: 0 0 6px; }
+.empty .actions { margin-top: 16px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.err { color: var(--warn); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; background: var(--sw); vertical-align: -1px; }
+svg text { font-family: "Segoe UI", system-ui, sans-serif; }
+dialog { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--text); padding: 16px; width: min(640px, 92vw); }
+dialog::backdrop { background: rgba(0,0,0,.35); }
+dialog textarea { width: 100%; height: 260px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel2); padding: 8px; font-family: Consolas, monospace; font-size: 12px; }
+dialog .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+#drop { position: fixed; inset: 0; background: rgba(47,111,219,.15); border: 3px dashed var(--accent); display: none; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; z-index: 10; pointer-events: none; }
+#toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; }
+#toast.show { opacity: .95; }
+#tip { position: fixed; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.15); display: none; z-index: 30; white-space: pre; }
+@media (max-width: 760px) {
+  main { flex-direction: column; }
+  aside { width: auto; max-height: 180px; border-right: none; border-bottom: 1px solid var(--line); }
+  .view { padding: 12px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="var(--accent)"/><path d="M7 23V15M12 23V10M17 23V13M22 23V7" stroke="var(--accent-text)" stroke-width="3" stroke-linecap="round"/></svg>
+    Gothysis
+  </div>
+  <div class="file" id="fileName">No data loaded</div>
+  <div class="spacer"></div>
+  <button class="btn primary" id="openBtn" title="Open a .csv, .tsv, .txt or .xlsx file (Ctrl+O)">Open…</button>
+  <button class="btn" id="pasteBtn">Paste data</button>
+  <button class="btn" id="sampleBtn">Sample: Iris</button>
+  <button class="btn" id="saveBtn" disabled title="Save the data table, including any saved columns, as CSV">Save CSV</button>
+  <button class="btn" id="themeBtn" title="Switch light / dark">◐</button>
+  <input type="file" id="fileInput" accept=".csv,.tsv,.txt,.dat,.xlsx" hidden>
+</header>
+<main>
+  <aside>
+    <h3>Columns</h3>
+    <div class="collist" id="colList"><div class="note" style="padding:0 6px">Open a file to see its columns.</div></div>
+    <div class="asidefoot" id="dataInfo">Click N / C to switch a column between numeric and categorical.</div>
+  </aside>
+  <div class="content">
+    <nav class="tabs" id="tabs">
+      <button data-view="data" class="active">Data</button>
+      <button data-view="dist">Distribution</button>
+      <button data-view="fit">Fit Y by X</button>
+      <button data-view="corr">Correlations</button>
+      <button data-view="pca">PCA &amp; PPCA</button>
+    </nav>
+    <section class="view active" id="view-data"></section>
+    <section class="view" id="view-dist"></section>
+    <section class="view" id="view-fit"></section>
+    <section class="view" id="view-corr"></section>
+    <section class="view" id="view-pca"></section>
+  </div>
+</main>
+<dialog id="pasteDlg">
+  <strong>Paste data</strong>
+  <div class="note">Paste rows copied from Excel or a text file. The first row must hold the column names. Tabs, commas or semicolons separate the values.</div>
+  <textarea id="pasteText" spellcheck="false" placeholder="Height	Weight	Group&#10;172	68	A&#10;181	80	B"></textarea>
+  <div class="row"><button class="btn" id="pasteCancel">Cancel</button><button class="btn primary" id="pasteOk">Load</button></div>
+</dialog>
+<div id="drop">Drop a .csv, .tsv or .xlsx file to open it</div>
+<div id="toast"></div>
+<div id="tip"></div>
+<script src="stats.js"></script>
+<script src="sample.js"></script>
+<script>
+"use strict";
+const S = window.GStats;
+const $ = (sel, el = document) => el.querySelector(sel);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = S.fmt, fmtP = S.fmtP;
+
+let table = null;            // current data table
+const state = { dist: [], fitY: "", fitX: "", fitDeg: 1, fitBand: true, corr: [], pcaCols: [], pcaStd: true, pcaColor: "", pcaQ: 2, pcaAx: 0, pcaAy: 1, distMu: 0, distNormal: true };
+
+// ---------- theme ----------
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function colors() {
+  return {
+    ink: cssVar("--chart-ink"), grid: cssVar("--chart-grid"), fill: cssVar("--chart-fill"), fill2: cssVar("--chart-fill2"),
+    line: cssVar("--chart-line"), band: cssVar("--chart-band"), bg: cssVar("--panel"), muted: cssVar("--muted"),
+    cat: [1, 2, 3, 4, 5, 6, 7, 8].map(i => cssVar("--c" + i)),
+  };
+}
+function setTheme(t) {
+  if (t) document.documentElement.setAttribute("data-theme", t); else document.documentElement.removeAttribute("data-theme");
+  try { localStorage.setItem("gothysis-theme", t || ""); } catch (e) {}
+  renderAll();
+}
+try { const t = localStorage.getItem("gothysis-theme"); if (t) document.documentElement.setAttribute("data-theme", t); } catch (e) {}
+$("#themeBtn").onclick = () => {
+  const cur = document.documentElement.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  setTheme(cur === "dark" ? "light" : "dark");
+};
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => renderAll());
+
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), 2600); }
+
+// ---------- SVG charts ----------
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) if (attrs[k] !== undefined && attrs[k] !== null) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function txt(parent, x, y, s, attrs) { const t = el("text", Object.assign({ x, y }, attrs || {}), parent); t.textContent = s; return t; }
+function niceTicks(lo, hi, n) {
+  if (!(hi > lo)) { hi = lo + 1; lo = lo - 1; }
+  const span = hi - lo, step0 = span / Math.max(1, n || 5);
+  const mag = Math.pow(10, Math.floor(Math.log10(step0))), f = step0 / mag;
+  const step = (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * mag;
+  const start = Math.ceil(lo / step - 1e-9) * step, out = [];
+  for (let v = start; v <= hi + step * 1e-9; v += step) out.push(Math.abs(v) < step * 1e-9 ? 0 : v);
+  return out;
+}
+function tickLabel(v) { return fmt(v, 4); }
+function pad(lo, hi, frac) { if (!(hi > lo)) return [lo - 1, hi + 1]; const p = (hi - lo) * (frac == null ? 0.05 : frac); return [lo - p, hi + p]; }
+
+// A plot frame: returns {svg, g, sx, sy, x0, y0, w, h}
+function frame(opts) {
+  const C = colors();
+  const W = opts.width || 420, H = opts.height || 300;
+  const m = Object.assign({ l: 52, r: 14, t: 12, b: 42 }, opts.margin || {});
+  const svg = el("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: "img" });
+  el("rect", { x: 0, y: 0, width: W, height: H, fill: C.bg }, svg);
+  const w = W - m.l - m.r, h = H - m.t - m.b;
+  const [xl, xh] = opts.xdom, [yl, yh] = opts.ydom;
+  const sx = v => m.l + (v - xl) / (xh - xl) * w, sy = v => m.t + h - (v - yl) / (yh - yl) * h;
+  const g = el("g", {}, svg);
+  if (!opts.noYAxis) for (const t of niceTicks(yl, yh, opts.yticks || 5)) {
+    const y = sy(t);
+    el("line", { x1: m.l, x2: m.l + w, y1: y, y2: y, stroke: C.grid }, g);
+    txt(g, m.l - 6, y + 4, tickLabel(t), { "text-anchor": "end", "font-size": 11, fill: C.ink });
+  }
+  if (opts.xcats) {
+    opts.xcats.forEach((c, i) => {
+      const x = sx(i);
+      const lab = String(c).length > 14 ? String(c).slice(0, 13) + "…" : String(c);
+      txt(g, x, m.t + h + 16, lab, { "text-anchor": "middle", "font-size": 11, fill: C.ink });
+    });
+  } else if (!opts.noXAxis) for (const t of niceTicks(xl, xh, opts.xticks || 6)) {
+    const x = sx(t);
+    el("line", { x1: x, x2: x, y1: m.t + h, y2: m.t + h + 4, stroke: C.ink }, g);
+    if (opts.xgrid) el("line", { x1: x, x2: x, y1: m.t, y2: m.t + h, stroke: C.grid }, g);
+    txt(g, x, m.t + h + 16, tickLabel(t), { "text-anchor": "middle", "font-size": 11, fill: C.ink });
+  }
+  el("line", { x1: m.l, x2: m.l + w, y1: m.t + h, y2: m.t + h, stroke: C.ink }, g);
+  if (opts.xlabel) txt(g, m.l + w / 2, H - 6, opts.xlabel, { "text-anchor": "middle", "font-size": 12, fill: C.ink, "font-weight": 600 });
+  if (opts.ylabel) txt(g, 13, m.t + h / 2, opts.ylabel, { "text-anchor": "middle", "font-size": 12, fill: C.ink, "font-weight": 600, transform: `rotate(-90 13 ${m.t + h / 2})` });
+  const clipId = "c" + Math.random().toString(36).slice(2);
+  const cp = el("clipPath", { id: clipId }, el("defs", {}, svg));
+  el("rect", { x: m.l, y: m.t - 1, width: w, height: h + 2 }, cp);
+  const plot = el("g", { "clip-path": `url(#${clipId})` }, svg);
+  return { svg, g, plot, sx, sy, x0: m.l, y0: m.t, w, h, C };
+}
+
+// Hover tooltips for any SVG element with data-tip
+document.addEventListener("mousemove", e => {
+  const t = e.target.closest && e.target.closest("[data-tip]"), tip = $("#tip");
+  if (!t) { tip.style.display = "none"; return; }
+  tip.textContent = t.getAttribute("data-tip");
+  tip.style.display = "block";
+  const x = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8), y = Math.min(e.clientY + 14, innerHeight - tip.offsetHeight - 8);
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+});
+
+function histogramChart(values, name, opts) {
+  const h = S.histogram(values), s = S.summarize(values);
+  const bins = h.bins;
+  if (!bins.length) return null;
+  let maxC = Math.max(...bins.map(b => b.count));
+  const xdom = [bins[0].lo, bins[bins.length - 1].hi];
+  if (opts.normal && s.n > 1 && s.sd > 0) maxC = Math.max(maxC, s.n * h.width / (s.sd * Math.sqrt(2 * Math.PI)));
+  const W = 440, boxH = 46;
+  const f = frame({ width: W, height: 300, xdom, ydom: [0, maxC * 1.08], margin: { t: 12 + boxH }, xlabel: name, ylabel: "Count" });
+  for (const b of bins) {
+    const x = f.sx(b.lo), x2 = f.sx(b.hi), y = f.sy(b.count);
+    el("rect", { x: x + 0.5, y, width: Math.max(0, x2 - x - 1), height: f.sy(0) - y, fill: f.C.fill, "data-tip": `${fmt(b.lo)} – ${fmt(b.hi)}\nCount ${b.count}` }, f.plot);
+  }
+  if (opts.normal && s.n > 1 && s.sd > 0) {
+    const pts = [];
+    for (let i = 0; i <= 120; i++) {
+      const x = xdom[0] + (xdom[1] - xdom[0]) * i / 120;
+      const dens = Math.exp(-0.5 * ((x - s.mean) / s.sd) ** 2) / (s.sd * Math.sqrt(2 * Math.PI));
+      pts.push(`${f.sx(x).toFixed(1)},${f.sy(dens * s.n * h.width).toFixed(1)}`);
+    }
+    el("polyline", { points: pts.join(" "), fill: "none", stroke: f.C.line, "stroke-width": 2 }, f.plot);
+  }
+  // Outlier box plot above the histogram
+  const yb = 12 + boxH / 2, bh = 18;
+  const iqr = s.q3 - s.q1, lof = s.q1 - 1.5 * iqr, hif = s.q3 + 1.5 * iqr;
+  const inside = s.sorted.filter(v => v >= lof && v <= hif);
+  const wl = inside.length ? inside[0] : s.min, wh = inside.length ? inside[inside.length - 1] : s.max;
+  const g = f.svg;
+  el("line", { x1: f.sx(wl), x2: f.sx(s.q1), y1: yb, y2: yb, stroke: f.C.ink }, g);
+  el("line", { x1: f.sx(s.q3), x2: f.sx(wh), y1: yb, y2: yb, stroke: f.C.ink }, g);
+  el("rect", { x: f.sx(s.q1), y: yb - bh / 2, width: Math.max(1, f.sx(s.q3) - f.sx(s.q1)), height: bh, fill: f.C.fill2, stroke: f.C.ink, "data-tip": `Q1 ${fmt(s.q1)}\nMedian ${fmt(s.median)}\nQ3 ${fmt(s.q3)}` }, g);
+  el("line", { x1: f.sx(s.median), x2: f.sx(s.median), y1: yb - bh / 2, y2: yb + bh / 2, stroke: f.C.ink, "stroke-width": 2 }, g);
+  const md = f.sx(s.mean);
+  el("path", { d: `M${md - 5},${yb} L${md},${yb - 6} L${md + 5},${yb} L${md},${yb + 6} Z`, fill: "none", stroke: f.C.line, "stroke-width": 1.5, "data-tip": `Mean ${fmt(s.mean)}` }, g);
+  for (const v of s.sorted) if (v < lof || v > hif) el("circle", { cx: f.sx(v), cy: yb, r: 3, fill: "none", stroke: f.C.ink, "data-tip": `Outlier ${fmt(v)}` }, g);
+  return f.svg;
+}
+
+function barChart(levels, name, opts) {
+  const n = levels.length, maxC = Math.max(...levels.map(l => l.count));
+  const W = Math.max(300, Math.min(760, 70 + n * 46));
+  const f = frame({ width: W, height: 280, xdom: [-0.6, n - 0.4], ydom: [0, maxC * 1.1], xcats: levels.map(l => l.level), xlabel: name, ylabel: "Count" });
+  const bw = Math.min(46, (f.w / n) * 0.7);
+  levels.forEach((l, i) => {
+    const x = f.sx(i), y = f.sy(l.count);
+    el("rect", { x: x - bw / 2, y, width: bw, height: f.sy(0) - y, fill: opts && opts.colors ? f.C.cat[i % 8] : f.C.fill, rx: 2, "data-tip": `${l.level}\nCount ${l.count} (${(100 * l.prob).toFixed(1)}%)` }, f.plot);
+  });
+  return f.svg;
+}
+
+function normalQuantileChart(values, name) {
+  const s = S.summarize(values);
+  if (s.n < 3) return null;
+  const pts = s.sorted.map((v, i) => [S.normInv((i + 1 - 0.375) / (s.n + 0.25)), v]);
+  const xdom = pad(pts[0][0], pts[pts.length - 1][0]), ydom = pad(s.min, s.max);
+  const f = frame({ width: 300, height: 300, xdom, ydom, xlabel: "Normal quantile", ylabel: name, xgrid: true });
+  el("line", { x1: f.sx(xdom[0]), y1: f.sy(s.mean + s.sd * xdom[0]), x2: f.sx(xdom[1]), y2: f.sy(s.mean + s.sd * xdom[1]), stroke: f.C.line, "stroke-width": 1.5 }, f.plot);
+  for (const [q, v] of pts) el("circle", { cx: f.sx(q), cy: f.sy(v), r: 2.6, fill: f.C.fill, "data-tip": `${fmt(v)}\nz ${fmt(q, 3)}` }, f.plot);
+  return f.svg;
+}
+
+function scatterChart(points, opts) {
+  // points: [{x, y, c (color index), tip}]
+  const xs = points.map(p => p.x), ys = points.map(p => p.y);
+  const xdom = opts.xdom || pad(Math.min(...xs), Math.max(...xs)), ydom = opts.ydom || pad(Math.min(...ys), Math.max(...ys));
+  const f = frame({ width: opts.width || 440, height: opts.height || 340, xdom, ydom, xlabel: opts.xlabel, ylabel: opts.ylabel, xgrid: true });
+  if (opts.before) opts.before(f);
+  const r = points.length > 2000 ? 1.6 : points.length > 500 ? 2.2 : 3.2;
+  for (const p of points) el("circle", { cx: f.sx(p.x).toFixed(1), cy: f.sy(p.y).toFixed(1), r, fill: p.c == null ? f.C.fill : f.C.cat[p.c % 8], "fill-opacity": 0.8, "data-tip": p.tip }, f.plot);
+  if (opts.after) opts.after(f);
+  return f.svg;
+}
+
+function curve(f, fn, xdom, attrs) {
+  const pts = [];
+  for (let i = 0; i <= 160; i++) { const x = xdom[0] + (xdom[1] - xdom[0]) * i / 160; const y = fn(x); if (Number.isFinite(y)) pts.push(`${f.sx(x).toFixed(1)},${f.sy(y).toFixed(1)}`); }
+  return el("polyline", Object.assign({ points: pts.join(" "), fill: "none" }, attrs), f.plot);
+}
+
+// ---------- tables ----------
+function statTable(head, rows, opts) {
+  opts = opts || {};
+  let h = `<table class="stat">`;
+  if (head) h += `<thead><tr>${head.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead>`;
+  h += "<tbody>" + rows.map((r, i) => `<tr${opts.hl === i ? ' class="hl"' : ""}>${r.map(c => {
+    if (c && typeof c === "object") return `<td class="${c.cls || ""}" ${c.style ? `style="${c.style}"` : ""}>${esc(c.v)}</td>`;
+    return `<td>${esc(c)}</td>`;
+  }).join("")}</tr>`).join("") + "</tbody></table>";
+  return h;
+}
+function pCell(p) { return { v: fmtP(p), cls: p < 0.05 ? "sig" : "" }; }
+
+function card(title, body, opts) {
+  opts = opts || {};
+  const c = document.createElement("div");
+  c.className = "card";
+  if (opts.wide) c.style.flexBasis = "100%";
+  const h = document.createElement("h4");
+  h.textContent = title;
+  c.appendChild(h);
+  if (opts.sub) { const s = document.createElement("div"); s.className = "sub"; s.textContent = opts.sub; c.appendChild(s); }
+  if (typeof body === "string") { const d = document.createElement("div"); d.innerHTML = body; c.appendChild(d); }
+  else if (body) c.appendChild(body);
+  if (body instanceof SVGElement) addSvgTools(h, body, title);
+  if (opts.csv) {
+    const tools = h.querySelector(".tools") || h.appendChild(Object.assign(document.createElement("span"), { className: "tools" }));
+    const b = Object.assign(document.createElement("button"), { className: "btn small", textContent: "CSV" });
+    b.onclick = () => download(fileBase() + " - " + title + ".csv", opts.csv(), "text/csv");
+    tools.appendChild(b);
+  }
+  return c;
+}
+function addSvgTools(h, svg, title) {
+  const tools = Object.assign(document.createElement("span"), { className: "tools" });
+  const png = Object.assign(document.createElement("button"), { className: "btn small", textContent: "PNG", title: "Save this chart as a PNG image" });
+  png.onclick = () => savePng(svg, title);
+  const sv = Object.assign(document.createElement("button"), { className: "btn small", textContent: "SVG", title: "Save this chart as an SVG drawing" });
+  sv.onclick = () => download(fileBase() + " - " + title + ".svg", new XMLSerializer().serializeToString(svg), "image/svg+xml");
+  tools.append(png, sv);
+  h.appendChild(tools);
+}
+function savePng(svg, title) {
+  const w = +svg.getAttribute("width"), hgt = +svg.getAttribute("height"), scale = 2;
+  const clone = svg.cloneNode(true);
+  clone.setAttribute("xmlns", NS);
+  const img = new Image();
+  img.onload = () => {
+    const cv = document.createElement("canvas");
+    cv.width = w * scale; cv.height = hgt * scale;
+    const ctx = cv.getContext("2d");
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, 0, 0);
+    cv.toBlob(b => download(fileBase() + " - " + title + ".png", b, "image/png"));
+  };
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(clone));
+}
+function download(name, data, type) {
+  const blob = data instanceof Blob ? data : new Blob([data], { type });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name.replace(/[<>:"/\\|?*]+/g, "-");
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast("Saved " + a.download + " to your Downloads folder");
+}
+function fileBase() { return table ? table.name.replace(/\.[^.]+$/, "") : "Gothysis"; }
+function legend(levels, C) {
+  const d = document.createElement("div");
+  d.className = "legend";
+  d.innerHTML = levels.map((l, i) => `<span style="--sw:${C.cat[i % 8]}">${esc(l)}</span>`).join("");
+  return d;
+}
+function wrap(...nodes) { const d = document.createElement("div"); nodes.forEach(n => n && d.appendChild(n)); return d; }
+
+// ---------- data loading ----------
+function loadTable(t) {
+  table = t;
+  $("#fileName").textContent = `${t.name}  ·  ${t.nrows} rows × ${t.columns.length} columns`;
+  $("#saveBtn").disabled = false;
+  const nums = t.columns.filter(c => c.type === "numeric").map(c => c.name);
+  const cats = t.columns.filter(c => c.type === "categorical").map(c => c.name);
+  state.dist = t.columns.slice(0, 4).map(c => c.name);
+  state.fitY = nums[1] || nums[0] || t.columns[0].name;
+  state.fitX = nums[0] && nums[0] !== state.fitY ? nums[0] : (t.columns.find(c => c.name !== state.fitY) || {}).name || "";
+  state.corr = nums.slice(0, 12);
+  state.pcaCols = nums.slice();
+  state.pcaColor = cats[0] || "";
+  state.pcaQ = Math.min(2, Math.max(1, nums.length - 1));
+  state.pcaAx = 0; state.pcaAy = 1;
+  renderAll();
+}
+async function openFile(file) {
+  try {
+    let t;
+    if (/\.xlsx$/i.test(file.name)) {
+      const rows = await S.readXlsx(await file.arrayBuffer(), s => new DOMParser().parseFromString(s, "application/xml"));
+      t = S.tableFromRows(rows, file.name);
+    } else if (/\.xls$/i.test(file.name)) {
+      throw new Error("Old .xls files are not supported. In Excel choose File → Save As → .xlsx or CSV.");
+    } else {
+      const text = await file.text();
+      t = S.tableFromRows(S.parseDelimited(text, /\.tsv$/i.test(file.name) ? "\t" : undefined), file.name);
+    }
+    loadTable(t);
+    toast(`Opened ${file.name}`);
+  } catch (e) {
+    alert("Could not open " + file.name + "\n\n" + (e.message || e));
+  }
+}
+$("#openBtn").onclick = () => $("#fileInput").click();
+$("#fileInput").onchange = e => { const f = e.target.files[0]; if (f) openFile(f); e.target.value = ""; };
+$("#sampleBtn").onclick = () => loadTable(S.tableFromRows(S.parseDelimited(window.GSample.text), window.GSample.name));
+$("#pasteBtn").onclick = () => { $("#pasteText").value = ""; $("#pasteDlg").showModal(); };
+$("#pasteCancel").onclick = () => $("#pasteDlg").close();
+$("#pasteOk").onclick = () => {
+  const txtv = $("#pasteText").value;
+  if (!txtv.trim()) return;
+  try { loadTable(S.tableFromRows(S.parseDelimited(txtv), "Pasted data")); $("#pasteDlg").close(); }
+  catch (e) { alert(e.message || e); }
+};
+$("#saveBtn").onclick = () => {
+  if (!table) return;
+  download(fileBase() + ".csv", S.toCsv(table.columns.map(c => c.name), table.columns.map(c => c.type === "numeric" ? c.values : c.values)), "text/csv");
+};
+document.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "o") { e.preventDefault(); $("#fileInput").click(); } });
+let dragDepth = 0;
+addEventListener("dragenter", e => { e.preventDefault(); dragDepth++; $("#drop").style.display = "flex"; });
+addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; $("#drop").style.display = "none"; } });
+addEventListener("dragover", e => e.preventDefault());
+addEventListener("drop", e => { e.preventDefault(); dragDepth = 0; $("#drop").style.display = "none"; const f = e.dataTransfer.files[0]; if (f) openFile(f); });
+
+function addColumn(name, values) {
+  let n = name, k = 2;
+  while (table.columns.some(c => c.name === n)) n = name + " " + k++;
+  table.columns.push({ name: n, type: "numeric", values, raw: values.map(v => (Number.isFinite(v) ? String(v) : "")) });
+  return n;
+}
+
+// ---------- tabs ----------
+let activeView = "data";
+$("#tabs").onclick = e => {
+  const b = e.target.closest("button[data-view]");
+  if (!b) return;
+  activeView = b.dataset.view;
+  document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("active", x === b));
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + activeView));
+  renderView(activeView);
+};
+function renderAll() { renderColumns(); renderView(activeView); }
+function renderView(v) {
+  const host = $("#view-" + v);
+  if (!table) { host.innerHTML = emptyHtml(); bindEmpty(host); return; }
+  try { ({ data: renderData, dist: renderDist, fit: renderFit, corr: renderCorr, pca: renderPca })[v](host); }
+  catch (e) { console.error(e); host.insertAdjacentHTML("beforeend", `<div class="card err">${esc(e.message || e)}</div>`); }
+}
+function emptyHtml() {
+  return `<div class="empty"><h2>Welcome to Gothysis</h2>
+    <div>Open a CSV, TSV or Excel (.xlsx) file, paste data, or try the Iris sample to explore distributions, fits, correlations, PCA and probabilistic PCA.</div>
+    <div class="actions"><button class="btn primary" data-act="open">Open a file…</button><button class="btn" data-act="sample">Load the Iris sample</button></div>
+    <div class="note" style="margin-top:14px">You can also drag a file onto this window. Your data stays on this computer.</div></div>`;
+}
+function bindEmpty(host) {
+  host.querySelectorAll("[data-act]").forEach(b => b.onclick = () => (b.dataset.act === "open" ? $("#fileInput").click() : $("#sampleBtn").click()));
+}
+
+function renderColumns() {
+  const list = $("#colList");
+  if (!table) return;
+  list.innerHTML = "";
+  for (const c of table.columns) {
+    const row = document.createElement("div");
+    row.className = "colitem";
+    const t = document.createElement("span");
+    t.className = "type " + c.type;
+    t.textContent = c.type === "numeric" ? "N" : "C";
+    t.title = (c.type === "numeric" ? "Numeric" : "Categorical") + " — click to switch";
+    t.onclick = () => {
+      const before = c.type;
+      S.setColumnType(c, c.type === "numeric" ? "categorical" : "numeric");
+      if (c.type === "numeric" && c.values.every(v => Number.isNaN(v))) { S.setColumnType(c, before); toast(`${c.name} has no numbers, so it stays categorical`); return; }
+      renderAll();
+    };
+    const n = document.createElement("span");
+    n.className = "name"; n.textContent = c.name; n.title = c.name;
+    row.append(t, n);
+    list.appendChild(row);
+  }
+  const nNum = table.columns.filter(c => c.type === "numeric").length;
+  $("#dataInfo").textContent = `${nNum} numeric, ${table.columns.length - nNum} categorical. Click N / C to switch a column's type.`;
+}
+
+// Role pickers
+function selectField(label, value, options, onchange, allowNone) {
+  const l = document.createElement("label");
+  l.className = "field";
+  l.textContent = label;
+  const s = document.createElement("select");
+  if (allowNone) s.add(new Option(allowNone, ""));
+  for (const o of options) s.add(new Option(o, o));
+  s.value = value;
+  s.onchange = () => onchange(s.value);
+  l.appendChild(s);
+  return l;
+}
+function numberField(label, value, attrs, onchange) {
+  const l = document.createElement("label");
+  l.className = "field"; l.textContent = label;
+  const i = document.createElement("input");
+  i.type = "number"; i.value = value;
+  Object.assign(i, attrs || {});
+  i.onchange = () => onchange(i.valueAsNumber);
+  l.appendChild(i);
+  return l;
+}
+function checkField(label, checked, onchange) {
+  const l = document.createElement("label");
+  l.className = "check";
+  const i = document.createElement("input");
+  i.type = "checkbox"; i.checked = checked;
+  i.onchange = () => onchange(i.checked);
+  l.append(i, document.createTextNode(label));
+  return l;
+}
+function multiPick(label, names, selected, onchange) {
+  const w = document.createElement("div");
+  w.className = "multipick";
+  const top = document.createElement("div");
+  top.className = "links";
+  top.innerHTML = `<span>${esc(label)}</span><a data-a="all">all</a><a data-a="none">none</a>`;
+  const box = document.createElement("div");
+  box.className = "box";
+  const set = new Set(selected.filter(s => names.includes(s)));
+  for (const n of names) {
+    const l = document.createElement("label");
+    l.className = "check";
+    const i = document.createElement("input");
+    i.type = "checkbox"; i.checked = set.has(n);
+    i.onchange = () => { if (i.checked) set.add(n); else set.delete(n); onchange(names.filter(x => set.has(x))); };
+    l.append(i, document.createTextNode(n));
+    box.appendChild(l);
+  }
+  top.onclick = e => {
+    const a = e.target.dataset.a;
+    if (!a) return;
+    onchange(a === "all" ? names.slice() : []);
+  };
+  w.append(top, box);
+  return w;
+}
+function rolesBar(...items) { const d = document.createElement("div"); d.className = "roles"; items.forEach(i => i && d.appendChild(i)); return d; }
+function colByName(n) { return table.columns.find(c => c.name === n); }
+function numericNames() { return table.columns.filter(c => c.type === "numeric").map(c => c.name); }
+function catNames() { return table.columns.filter(c => c.type === "categorical").map(c => c.name); }
+
+// ---------- Data view ----------
+function renderData(host) {
+  const LIMIT = 2000, n = Math.min(table.nrows, LIMIT);
+  let h = `<div class="datawrap"><table class="data"><thead><tr><th></th>${table.columns.map(c => `<th title="${c.type}">${esc(c.name)}</th>`).join("")}</tr></thead><tbody>`;
+  const parts = [];
+  for (let i = 0; i < n; i++) {
+    parts.push(`<tr><td class="row">${i + 1}</td>` + table.columns.map(c => {
+      const v = c.values[i];
+      if (S.isMissing(v)) return `<td class="miss">·</td>`;
+      return c.type === "numeric" ? `<td class="num">${esc(+v.toPrecision(10))}</td>` : `<td>${esc(v)}</td>`;
+    }).join("") + "</tr>");
+  }
+  h += parts.join("") + "</tbody></table></div>";
+  if (table.nrows > LIMIT) h += `<div class="note">Showing the first ${LIMIT} of ${table.nrows} rows. Every analysis uses all rows.</div>`;
+  else h += `<div class="note">${table.nrows} rows. Missing values are shown as ·.</div>`;
+  host.innerHTML = h;
+}
+
+// ---------- Distribution ----------
+function renderDist(host) {
+  host.innerHTML = "";
+  const names = table.columns.map(c => c.name);
+  host.appendChild(rolesBar(
+    multiPick("Columns", names, state.dist, v => { state.dist = v; renderDist(host); }),
+    numberField("Test mean = ", state.distMu, { step: "any" }, v => { state.distMu = Number.isFinite(v) ? v : 0; renderDist(host); }),
+    checkField("Normal curve", state.distNormal, v => { state.distNormal = v; renderDist(host); }),
+  ));
+  if (!state.dist.length) { host.insertAdjacentHTML("beforeend", `<div class="note">Pick one or more columns.</div>`); return; }
+  for (const name of state.dist) {
+    const col = colByName(name);
+    if (!col) continue;
+    const grp = document.createElement("div");
+    grp.className = "group";
+    grp.innerHTML = `<h3>${esc(name)} <span class="note">${col.type}</span></h3>`;
+    const res = document.createElement("div");
+    res.className = "results";
+    grp.appendChild(res);
+    host.appendChild(grp);
+    if (col.type === "numeric") {
+      const s = S.summarize(col.values);
+      if (!s.n) { res.innerHTML = `<div class="note">No numeric values.</div>`; continue; }
+      res.appendChild(card("Histogram", histogramChart(col.values, name, { normal: state.distNormal }), { sub: "Box plot above: box = quartiles, ◇ = mean, ○ = outliers beyond 1.5 × IQR" }));
+      const qrows = [["100.0%", "maximum", s.max], ["97.5%", "", S.quantileSorted(s.sorted, 0.975)], ["90.0%", "", S.quantileSorted(s.sorted, 0.9)], ["75.0%", "quartile", s.q3], ["50.0%", "median", s.median], ["25.0%", "quartile", s.q1], ["10.0%", "", S.quantileSorted(s.sorted, 0.1)], ["2.5%", "", S.quantileSorted(s.sorted, 0.025)], ["0.0%", "minimum", s.min]];
+      res.appendChild(card("Quantiles", statTable(null, qrows.map(r => [r[0], { v: r[1], style: "color:var(--muted);text-align:left" }, fmt(r[2])]))));
+      const mrows = [["Mean", fmt(s.mean)], ["Std Dev", fmt(s.sd)], ["Std Err Mean", fmt(s.se)], ["Upper 95% Mean", fmt(s.ciHigh)], ["Lower 95% Mean", fmt(s.ciLow)], ["N", s.n], ["N Missing", s.nMissing], ["Sum", fmt(s.sum)], ["Variance", fmt(s.variance)], ["Skewness", fmt(s.skewness)], ["Kurtosis (excess)", fmt(s.kurtosis)], ["CV %", fmt(100 * s.sd / s.mean)]];
+      res.appendChild(card("Summary Statistics", statTable(null, mrows)));
+      const tests = document.createElement("div");
+      const sw = S.shapiroWilk(col.values);
+      let th = "";
+      if (sw) th += `<div class="note" style="margin-top:0">Shapiro-Wilk test that the data are normal</div>` + statTable(["", "W", "Prob < W"], [["Normality", fmt(sw.w), pCell(sw.p)]]);
+      const tt = S.oneSampleT(col.values, state.distMu);
+      if (tt) th += `<div class="note">One-sample t test, H0: mean = ${esc(fmt(state.distMu))}</div>` + statTable(["t Ratio", "DF", "Prob > |t|", "Prob > t", "Prob < t"], [[fmt(tt.t), tt.df, pCell(tt.p), pCell(tt.pUpper), pCell(tt.pLower)]]);
+      tests.innerHTML = th || `<div class="note">Need at least 3 values.</div>`;
+      const nq = normalQuantileChart(col.values, name);
+      res.appendChild(card("Normal Quantile Plot", nq || "<div class='note'>Need at least 3 values.</div>"));
+      res.appendChild(card("Tests", tests));
+    } else {
+      const f = S.frequencies(col.values);
+      if (!f.levels.length) { res.innerHTML = `<div class="note">No values.</div>`; continue; }
+      const shown = f.levels.slice(0, 60);
+      res.appendChild(card("Frequencies chart", barChart(shown, name), { sub: f.levels.length > 60 ? `First 60 of ${f.levels.length} levels` : "" }));
+      const rows = f.levels.map(l => [l.level, l.count, fmt(l.prob, 4)]);
+      rows.push([{ v: "Total", style: "font-weight:600" }, f.total, "1"]);
+      if (f.missing) rows.push([{ v: "N Missing", style: "color:var(--muted)" }, f.missing, ""]);
+      res.appendChild(card("Frequencies", statTable(["Level", "Count", "Prob"], rows), {
+        csv: () => S.toCsv(["Level", "Count", "Prob"], [f.levels.map(l => l.level), f.levels.map(l => l.count), f.levels.map(l => l.prob)]),
+      }));
+    }
+  }
+}
+
+// ---------- Fit Y by X ----------
+function renderFit(host) {
+  host.innerHTML = "";
+  const names = table.columns.map(c => c.name);
+  host.appendChild(rolesBar(
+    selectField("Y, response", state.fitY, names, v => { state.fitY = v; renderFit(host); }),
+    selectField("X, factor", state.fitX, names, v => { state.fitX = v; renderFit(host); }),
+    (() => { const yc = colByName(state.fitY), xc = colByName(state.fitX); if (!(yc && xc && yc.type === "numeric" && xc.type === "numeric")) return null;
+      const d = document.createElement("div"); d.style.display = "flex"; d.style.gap = "14px"; d.style.alignItems = "flex-end";
+      d.append(selectField("Fit", ["Linear", "Quadratic", "Cubic"][state.fitDeg - 1], ["Linear", "Quadratic", "Cubic"], v => { state.fitDeg = { Linear: 1, Quadratic: 2, Cubic: 3 }[v]; renderFit(host); }),
+        state.fitDeg === 1 ? checkField("95% confidence band", state.fitBand, v => { state.fitBand = v; renderFit(host); }) : document.createTextNode(""));
+      return d; })(),
+  ));
+  const yc = colByName(state.fitY), xc = colByName(state.fitX);
+  const res = document.createElement("div");
+  res.className = "results";
+  host.appendChild(res);
+  if (!yc || !xc) { res.innerHTML = `<div class="note">Choose a Y and an X column.</div>`; return; }
+  if (yc === xc) { res.innerHTML = `<div class="note">Choose two different columns.</div>`; return; }
+  if (yc.type === "numeric" && xc.type === "numeric") return bivariate(res, xc, yc);
+  if (yc.type === "numeric" && xc.type === "categorical") return onewayView(res, xc, yc);
+  if (yc.type === "categorical" && xc.type === "categorical") return contingencyView(res, xc, yc);
+  res.innerHTML = `<div class="card">A categorical Y with a numeric X needs logistic regression, which Gothysis does not do yet.<br>Switch X to categorical (click its N in the column list) to get a contingency table, or swap Y and X for a one-way analysis.</div>`;
+}
+
+function bivariate(res, xc, yc) {
+  const fit = S.linearFit(xc.values, yc.values);
+  const { x, y } = S.pairs(xc.values, yc.values);
+  if (x.length < 3 || !fit) { res.innerHTML = `<div class="note">Need at least 3 rows with both values, and X must vary.</div>`; return; }
+  const poly = state.fitDeg > 1 ? S.polyFit(xc.values, yc.values, state.fitDeg) : null;
+  const xdom = pad(Math.min(...x), Math.max(...x));
+  const pts = x.map((v, i) => ({ x: v, y: y[i], tip: `${xc.name} ${fmt(v)}\n${yc.name} ${fmt(y[i])}` }));
+  const svg = scatterChart(pts, {
+    xlabel: xc.name, ylabel: yc.name, width: 520, height: 380,
+    before: f => {
+      if (state.fitDeg === 1 && state.fitBand) {
+        const up = [], lo = [];
+        for (let i = 0; i <= 80; i++) { const xv = xdom[0] + (xdom[1] - xdom[0]) * i / 80, b = fit.band(xv); up.push(`${f.sx(xv)},${f.sy(b[1])}`); lo.unshift(`${f.sx(xv)},${f.sy(b[0])}`); }
+        el("polygon", { points: up.concat(lo).join(" "), fill: f.C.band, stroke: "none" }, f.plot);
+      }
+    },
+    after: f => curve(f, poly ? poly.predict : fit.predict, xdom, { stroke: f.C.line, "stroke-width": 2.2 }),
+  });
+  res.appendChild(card(`Bivariate Fit of ${yc.name} by ${xc.name}`, svg));
+  const box = document.createElement("div");
+  if (poly) {
+    const terms = poly.beta.map((b, j) => j === 0 ? fmt(b) : `${b >= 0 ? "+" : "−"} ${fmt(Math.abs(b))}·(x − ${fmt(poly.center)})${j > 1 ? "^" + j : ""}`).join(" ");
+    box.innerHTML = `<div class="note" style="margin-top:0">${esc(yc.name)} = ${esc(terms)}</div>` +
+      statTable(null, [["RSquare", fmt(poly.rsq)], ["RSquare Adj", fmt(poly.adjRsq)], ["Root Mean Square Error", fmt(poly.rmse)], ["Observations", poly.n], ["F Ratio", fmt(poly.F)], ["Prob > F", pCell(poly.p)]]);
+    res.appendChild(card(state.fitDeg === 2 ? "Quadratic Fit" : "Cubic Fit", box));
+  } else {
+    const a = fit.anova;
+    box.innerHTML = `<div class="note" style="margin-top:0">${esc(yc.name)} = ${esc(fmt(fit.intercept))} ${fit.slope >= 0 ? "+" : "−"} ${esc(fmt(Math.abs(fit.slope)))}·${esc(xc.name)}</div>` +
+      statTable(null, [["RSquare", fmt(fit.rsq)], ["RSquare Adj", fmt(fit.adjRsq)], ["Root Mean Square Error", fmt(fit.rmse)], ["Mean of Response", fmt(fit.meanY)], ["Observations", fit.n], ["Correlation r", fmt(fit.r)]]) +
+      `<div class="note">Parameter estimates</div>` +
+      statTable(["Term", "Estimate", "Std Error", "t Ratio", "Prob>|t|"], [["Intercept", fmt(fit.intercept), fmt(fit.seInt), fmt(fit.tInt), pCell(fit.pInt)], [xc.name, fmt(fit.slope), fmt(fit.seSlope), fmt(fit.tSlope), pCell(fit.pSlope)]]) +
+      `<div class="note">Analysis of variance</div>` +
+      statTable(["Source", "DF", "Sum of Squares", "Mean Square", "F Ratio", "Prob > F"], [["Model", a.dfModel, fmt(a.ssModel), fmt(a.msModel), fmt(a.F), pCell(a.p)], ["Error", a.dfError, fmt(a.ssError), fmt(a.msError), "", ""], ["C. Total", a.dfTotal, fmt(a.ssTotal), "", "", ""]]);
+    res.appendChild(card("Linear Fit", box));
+    const resid = x.map((v, i) => ({ x: fit.predict(v), y: y[i] - fit.predict(v), tip: `Predicted ${fmt(fit.predict(v))}\nResidual ${fmt(y[i] - fit.predict(v))}` }));
+    res.appendChild(card("Residual by Predicted", scatterChart(resid, { xlabel: "Predicted " + yc.name, ylabel: "Residual", width: 380, height: 260, after: f => el("line", { x1: f.x0, x2: f.x0 + f.w, y1: f.sy(0), y2: f.sy(0), stroke: f.C.line, "stroke-dasharray": "4 3" }, f.plot) })));
+  }
+}
+
+function onewayView(res, xc, yc) {
+  const a = S.oneway(xc.values, yc.values);
+  if (!a.groups.length) { res.innerHTML = `<div class="note">No rows with both values.</div>`; return; }
+  const groups = a.groups.slice(0, 40);
+  const all = groups.flatMap(g => g.values);
+  const ydom = pad(Math.min(...all), Math.max(...all));
+  const n = groups.length;
+  const W = Math.max(360, Math.min(820, 90 + n * 70));
+  const f = frame({ width: W, height: 360, xdom: [-0.6, n - 0.4], ydom, xcats: groups.map(g => g.level), xlabel: xc.name, ylabel: yc.name });
+  groups.forEach((g, i) => {
+    const s = g.summary, cx = f.sx(i), bw = Math.min(40, f.w / n * 0.45);
+    const iqr = s.q3 - s.q1, lof = s.q1 - 1.5 * iqr, hif = s.q3 + 1.5 * iqr;
+    const inside = s.sorted.filter(v => v >= lof && v <= hif);
+    el("line", { x1: cx, x2: cx, y1: f.sy(inside[0]), y2: f.sy(s.q1), stroke: f.C.ink }, f.plot);
+    el("line", { x1: cx, x2: cx, y1: f.sy(s.q3), y2: f.sy(inside[inside.length - 1]), stroke: f.C.ink }, f.plot);
+    el("rect", { x: cx - bw / 2, y: f.sy(s.q3), width: bw, height: Math.max(1, f.sy(s.q1) - f.sy(s.q3)), fill: "none", stroke: f.C.ink, "data-tip": `${g.level}\nQ1 ${fmt(s.q1)}  Median ${fmt(s.median)}  Q3 ${fmt(s.q3)}` }, f.plot);
+    el("line", { x1: cx - bw / 2, x2: cx + bw / 2, y1: f.sy(s.median), y2: f.sy(s.median), stroke: f.C.ink, "stroke-width": 1.5 }, f.plot);
+    g.values.forEach((v, k) => {
+      const jit = ((k * 0.618034) % 1 - 0.5) * bw * 0.9;
+      el("circle", { cx: cx + jit, cy: f.sy(v), r: 2.4, fill: f.C.cat[i % 8], "fill-opacity": 0.75, "data-tip": `${g.level}: ${fmt(v)}` }, f.plot);
+    });
+    if (a.ok) {
+      el("line", { x1: cx - bw * 0.75, x2: cx + bw * 0.75, y1: f.sy(s.mean), y2: f.sy(s.mean), stroke: f.C.line, "stroke-width": 2.2 }, f.plot);
+      el("line", { x1: cx + bw * 0.62, x2: cx + bw * 0.62, y1: f.sy(g.ciLow), y2: f.sy(g.ciHigh), stroke: f.C.line, "stroke-width": 1.4, "data-tip": `Mean ${fmt(s.mean)}\n95% CI ${fmt(g.ciLow)} – ${fmt(g.ciHigh)}` }, f.plot);
+    }
+  });
+  if (a.ok) el("line", { x1: f.x0, x2: f.x0 + f.w, y1: f.sy(a.grandMean), y2: f.sy(a.grandMean), stroke: f.C.muted, "stroke-dasharray": "5 4" }, f.plot);
+  res.appendChild(card(`Oneway Analysis of ${yc.name} by ${xc.name}`, f.svg, { sub: (n < a.groups.length ? `First 40 of ${a.groups.length} levels. ` : "") + "Box plots with points; orange bar = group mean and its 95% CI; dashed = grand mean" }));
+  const box = document.createElement("div");
+  let h = "";
+  if (a.ok) {
+    const t = a.anova;
+    h += statTable(null, [["RSquare", fmt(a.rsq)], ["Root Mean Square Error", fmt(a.rmse)], ["Mean of Response", fmt(a.grandMean)], ["Observations", a.N]]);
+    h += `<div class="note">Analysis of variance</div>` + statTable(["Source", "DF", "Sum of Squares", "Mean Square", "F Ratio", "Prob > F"], [[xc.name, t.dfModel, fmt(t.ssModel), fmt(t.msModel), fmt(t.F), pCell(t.p)], ["Error", t.dfError, fmt(t.ssError), fmt(t.msError), "", ""], ["C. Total", t.dfTotal, fmt(t.ssTotal), "", "", ""]]);
+    if (a.welch) h += `<div class="note">Welch's test (does not assume equal variances)</div>` + statTable(["F Ratio", "DFNum", "DFDen", "Prob > F"], [[fmt(a.welch.F), a.welch.df1, fmt(a.welch.df2, 4), pCell(a.welch.p)]]);
+  } else h += `<div class="note">Need at least two groups and more rows than groups for ANOVA.</div>`;
+  box.innerHTML = h;
+  res.appendChild(card("Oneway ANOVA", box));
+  const rows = a.groups.map(g => [g.level, g.values.length, fmt(g.summary.mean), fmt(g.summary.sd), fmt(g.summary.se), a.ok ? fmt(g.ciLow) : "·", a.ok ? fmt(g.ciHigh) : "·"]);
+  res.appendChild(card("Means and Std Deviations", statTable(["Level", "Number", "Mean", "Std Dev", "Std Err Mean", "Lower 95%", "Upper 95%"], rows), { sub: "95% limits use the pooled error variance" }));
+}
+
+function contingencyView(res, xc, yc) {
+  const t = S.contingency(xc.values, yc.values);
+  if (!t.n) { res.innerHTML = `<div class="note">No rows with both values.</div>`; return; }
+  const rows = t.rows.slice(0, 30), cols = t.cols.slice(0, 12);
+  const n = rows.length, W = Math.max(360, Math.min(820, 100 + n * 60));
+  const f = frame({ width: W, height: 320, xdom: [-0.6, n - 0.4], ydom: [0, 1], xcats: rows, xlabel: xc.name, ylabel: "Share of " + yc.name });
+  rows.forEach((r, i) => {
+    const ri = t.rows.indexOf(r), tot = t.rowTot[ri], bw = Math.min(50, f.w / n * 0.75);
+    let acc = 0;
+    t.cols.forEach((c, j) => {
+      const share = t.table[ri][j] / tot;
+      if (j < 12) el("rect", { x: f.sx(i) - bw / 2, y: f.sy(acc + share), width: bw, height: Math.max(0, f.sy(acc) - f.sy(acc + share)), fill: f.C.cat[j % 8], stroke: f.C.bg, "data-tip": `${xc.name} = ${r}\n${yc.name} = ${c}\nCount ${t.table[ri][j]} (${(100 * share).toFixed(1)}%)` }, f.plot);
+      acc += share;
+    });
+  });
+  res.appendChild(card(`Contingency Analysis of ${yc.name} by ${xc.name}`, wrap(f.svg, legend(cols, f.C)), { sub: (t.rows.length > 30 || t.cols.length > 12) ? "Showing the first 30 X levels and 12 Y levels" : "" }));
+  const head = [xc.name + " \\ " + yc.name].concat(t.cols, ["Total"]);
+  const body = t.rows.map((r, i) => [r].concat(t.table[i].map(v => `${v} (${(100 * v / t.rowTot[i]).toFixed(1)}%)`), [t.rowTot[i]]));
+  body.push([{ v: "Total", style: "font-weight:600" }].concat(t.colTot, [t.n]));
+  res.appendChild(card("Contingency Table", statTable(head, body), { sub: "Count (row %)" }));
+  const tests = `<div>` + statTable(["Test", "ChiSquare", "DF", "Prob>ChiSq"], [["Likelihood Ratio", fmt(t.g2), t.df, pCell(t.pG2)], ["Pearson", fmt(t.chi2), t.df, pCell(t.p)]]) +
+    (t.lowExpected ? `<div class="note">${t.lowExpected} cell(s) have expected count below 5, so the chi-square p-values may be unreliable.</div>` : "") + `</div>`;
+  res.appendChild(card("Tests", tests, { sub: `N = ${t.n}` }));
+}
+
+// ---------- Correlations ----------
+function renderCorr(host) {
+  host.innerHTML = "";
+  const names = numericNames();
+  host.appendChild(rolesBar(multiPick("Numeric columns", names, state.corr, v => { state.corr = v; renderCorr(host); })));
+  const res = document.createElement("div");
+  res.className = "results";
+  host.appendChild(res);
+  if (state.corr.length < 2) { res.innerHTML = `<div class="note">Pick at least two numeric columns.</div>`; return; }
+  const cols = state.corr.map(n => colByName(n).values);
+  const c = S.correlations(cols);
+  if (!c) { res.innerHTML = `<div class="note">Need at least 3 rows with no missing values in these columns.</div>`; return; }
+  const pos = cssVar("--heat-pos"), neg = cssVar("--heat-neg");
+  const heat = v => Number.isFinite(v) ? `background: rgba(${v >= 0 ? pos : neg}, ${(Math.abs(v) * 0.55).toFixed(3)})` : "";
+  const rows = state.corr.map((n, i) => [n].concat(c.r[i].map(v => ({ v: fmt(v, 4), style: heat(v) }))));
+  res.appendChild(card("Correlations", statTable([""].concat(state.corr), rows), { sub: `Pearson r, ${c.n} complete rows`, csv: () => S.toCsv([""].concat(state.corr), [state.corr].concat(c.r.map((_, j) => c.r.map(r => r[j])))) }));
+  const prow = state.corr.map((n, i) => [n].concat(c.p[i].map((p, j) => i === j ? "" : pCell(p))));
+  res.appendChild(card("Prob > |r|", statTable([""].concat(state.corr), prow), { sub: "Two-sided test of zero correlation" }));
+  const statsRows = state.corr.map((n, i) => [n, fmt(c.mean[i]), fmt(c.sd[i])]);
+  res.appendChild(card("Simple Statistics", statTable(["Column", "Mean", "Std Dev"], statsRows)));
+  if (state.corr.length <= 7) res.appendChild(card("Scatterplot Matrix", scatterMatrix(state.corr, cols, c), { wide: false }));
+  else res.insertAdjacentHTML("beforeend", `<div class="note">The scatterplot matrix is shown for 7 or fewer columns.</div>`);
+}
+function scatterMatrix(names, cols, c) {
+  const k = names.length, cell = Math.max(90, Math.min(150, 680 / k)), m = 6, W = k * cell + 2 * m;
+  const C = colors();
+  const svg = el("svg", { width: W, height: W, viewBox: `0 0 ${W} ${W}` });
+  el("rect", { width: W, height: W, fill: C.bg }, svg);
+  const { rows } = S.completeCases(cols);
+  const sample = rows.length > 1500 ? rows.filter((_, i) => i % Math.ceil(rows.length / 1500) === 0) : rows;
+  const doms = names.map((_, j) => pad(Math.min(...rows.map(r => r[j])), Math.max(...rows.map(r => r[j]))));
+  for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) {
+    const x0 = m + j * cell, y0 = m + i * cell;
+    el("rect", { x: x0 + 2, y: y0 + 2, width: cell - 4, height: cell - 4, fill: "none", stroke: C.grid }, svg);
+    if (i === j) {
+      const lab = names[i].length > 16 ? names[i].slice(0, 15) + "…" : names[i];
+      txt(svg, x0 + cell / 2, y0 + cell / 2 + 4, lab, { "text-anchor": "middle", "font-size": 12, "font-weight": 600, fill: C.ink });
+      continue;
+    }
+    const [xl, xh] = doms[j], [yl, yh] = doms[i];
+    for (const r of sample) el("circle", { cx: (x0 + 4 + (r[j] - xl) / (xh - xl) * (cell - 8)).toFixed(1), cy: (y0 + cell - 4 - (r[i] - yl) / (yh - yl) * (cell - 8)).toFixed(1), r: 1.7, fill: C.fill, "fill-opacity": 0.7 }, svg);
+    el("rect", { x: x0 + 2, y: y0 + 2, width: cell - 4, height: cell - 4, fill: "transparent", "data-tip": `${names[i]} vs ${names[j]}\nr = ${fmt(c.r[i][j], 3)}` }, svg);
+  }
+  return svg;
+}
+
+// ---------- PCA & PPCA ----------
+function renderPca(host) {
+  host.innerHTML = "";
+  const names = numericNames();
+  const d = state.pcaCols.filter(n => names.includes(n)).length;
+  host.appendChild(rolesBar(
+    multiPick("Numeric columns (Y)", names, state.pcaCols, v => { state.pcaCols = v; state.pcaQ = Math.min(Math.max(1, state.pcaQ), Math.max(1, v.length - 1)); renderPca(host); }),
+    checkField("Standardize (correlation matrix)", state.pcaStd, v => { state.pcaStd = v; renderPca(host); }),
+    selectField("Color by", state.pcaColor, catNames(), v => { state.pcaColor = v; renderPca(host); }, "(none)"),
+    d >= 2 ? numberField("PPCA latent dims q", state.pcaQ, { min: 1, max: d - 1, step: 1 }, v => { state.pcaQ = Math.min(d - 1, Math.max(1, Math.round(v) || 1)); renderPca(host); }) : null,
+  ));
+  const res = document.createElement("div");
+  res.className = "results";
+  host.appendChild(res);
+  const sel = state.pcaCols.filter(n => names.includes(n));
+  if (sel.length < 2) { res.innerHTML = `<div class="note">Pick at least two numeric columns.</div>`; return; }
+  const cols = sel.map(n => colByName(n).values);
+  let P;
+  try { P = S.pca(cols, { standardize: state.pcaStd }); } catch (e) { res.innerHTML = `<div class="card err">${esc(e.message)}</div>`; return; }
+  const k = P.components.length;
+  state.pcaAx = Math.min(state.pcaAx, k - 1); state.pcaAy = Math.min(state.pcaAy, k - 1);
+  const show = Math.min(k, 30);
+
+  // PCA
+  const pcaHead = document.createElement("div");
+  pcaHead.className = "group";
+  pcaHead.innerHTML = `<h3>Principal Components <span class="note">on ${state.pcaStd ? "correlations" : "covariances"}, ${P.n} complete rows${P.n < table.nrows ? ` (${table.nrows - P.n} with missing values left out)` : ""}</span></h3>`;
+  res.appendChild(pcaHead);
+  const eigRows = P.components.slice(0, show).map((c, i) => ["PC" + (i + 1), fmt(c.eigenvalue), fmt(c.percent, 4), fmt(c.cumPercent, 4)]);
+  res.appendChild(card("Eigenvalues", statTable(["", "Eigenvalue", "Percent", "Cum Percent"], eigRows), {
+    sub: k > show ? `First ${show} of ${k}` : (state.pcaStd ? "Kaiser rule: keep components with eigenvalue > 1" : ""),
+    csv: () => S.toCsv(["Component", "Eigenvalue", "Percent", "Cum Percent"], [P.components.map((_, i) => "PC" + (i + 1)), P.components.map(c => c.eigenvalue), P.components.map(c => c.percent), P.components.map(c => c.cumPercent)]),
+  }));
+  // scree
+  const f = frame({ width: 380, height: 260, xdom: [0.5, show + 0.5], ydom: [0, P.components[0].eigenvalue * 1.08], xlabel: "Component", ylabel: "Eigenvalue", xticks: Math.min(show, 10) });
+  const pts = P.components.slice(0, show).map((c, i) => `${f.sx(i + 1)},${f.sy(c.eigenvalue)}`).join(" ");
+  P.components.slice(0, show).forEach((c, i) => el("rect", { x: f.sx(i + 1) - Math.min(14, f.w / show * 0.3), y: f.sy(c.eigenvalue), width: Math.min(28, f.w / show * 0.6), height: f.sy(0) - f.sy(c.eigenvalue), fill: f.C.fill, "fill-opacity": 0.35, "data-tip": `PC${i + 1}: ${fmt(c.percent, 3)}%` }, f.plot));
+  el("polyline", { points: pts, fill: "none", stroke: f.C.line, "stroke-width": 2 }, f.plot);
+  if (state.pcaStd) el("line", { x1: f.x0, x2: f.x0 + f.w, y1: f.sy(1), y2: f.sy(1), stroke: f.C.muted, "stroke-dasharray": "4 3" }, f.plot);
+  res.appendChild(card("Scree Plot", f.svg));
+
+  // score plot
+  const colorCol = state.pcaColor ? colByName(state.pcaColor) : null;
+  const levels = colorCol ? S.frequencies(colorCol.values).levels.map(l => l.level) : [];
+  const lvlIndex = new Map(levels.map((l, i) => [l, i]));
+  const ax = state.pcaAx, ay = state.pcaAy;
+  const spts = P.scores.map((s, r) => {
+    const row = P.index[r], g = colorCol ? colorCol.values[row] : null;
+    return { x: s[ax], y: s[ay], c: g != null && lvlIndex.has(String(g)) ? lvlIndex.get(String(g)) : null, tip: `Row ${row + 1}${g != null ? "\n" + state.pcaColor + ": " + g : ""}\nPC${ax + 1} ${fmt(s[ax], 3)}, PC${ay + 1} ${fmt(s[ay], 3)}` };
+  });
+  const axSel = document.createElement("div");
+  axSel.style.display = "flex"; axSel.style.gap = "10px"; axSel.style.marginBottom = "6px";
+  const pcs = P.components.slice(0, show).map((_, i) => "PC" + (i + 1));
+  axSel.append(selectField("X axis", "PC" + (ax + 1), pcs, v => { state.pcaAx = +v.slice(2) - 1; renderPca(host); }), selectField("Y axis", "PC" + (ay + 1), pcs, v => { state.pcaAy = +v.slice(2) - 1; renderPca(host); }));
+  axSel.querySelectorAll("select").forEach(s => { s.style.minWidth = "80px"; s.style.padding = "2px 4px"; s.style.border = "1px solid var(--line)"; s.style.borderRadius = "5px"; s.style.background = "var(--panel)"; });
+  axSel.querySelectorAll("label").forEach(l => { l.style.fontSize = "12px"; l.style.color = "var(--muted)"; l.style.display = "flex"; l.style.flexDirection = "column"; });
+  const scoreSvg = scatterChart(spts, {
+    xlabel: `PC${ax + 1} (${fmt(P.components[ax].percent, 3)}%)`, ylabel: `PC${ay + 1} (${fmt(P.components[ay].percent, 3)}%)`, width: 460, height: 380,
+    before: f2 => { el("line", { x1: f2.sx(0), x2: f2.sx(0), y1: f2.y0, y2: f2.y0 + f2.h, stroke: f2.C.grid, "stroke-width": 2 }, f2.plot); el("line", { x1: f2.x0, x2: f2.x0 + f2.w, y1: f2.sy(0), y2: f2.sy(0), stroke: f2.C.grid, "stroke-width": 2 }, f2.plot); },
+  });
+  const scoreCard = card("Score Plot", wrap(axSel, scoreSvg, levels.length && levels.length <= 30 ? legend(levels, colors()) : null));
+  addSvgTools(scoreCard.querySelector("h4"), scoreSvg, "Score Plot");
+  const saveBtn = Object.assign(document.createElement("button"), { className: "btn small", textContent: "Save scores", title: "Add PC score columns to the data table" });
+  saveBtn.onclick = () => {
+    const m = Math.min(k, Math.max(2, P.components.filter(c => c.eigenvalue > 1).length || 2));
+    for (let j = 0; j < m; j++) {
+      const v = new Array(table.nrows).fill(NaN);
+      P.index.forEach((row, r) => { v[row] = P.scores[r][j]; });
+      addColumn("Prin" + (j + 1), v);
+    }
+    renderColumns();
+    toast(`Added ${m} principal component columns to the data table`);
+  };
+  scoreCard.querySelector(".tools").prepend(saveBtn);
+  res.appendChild(scoreCard);
+
+  // loading plot
+  const L = P.loadings;
+  const lim = Math.max(1, ...sel.map((_, j) => Math.max(Math.abs(L[ax][j]), Math.abs(L[ay][j])))) * 1.12;
+  const lf = frame({ width: 460, height: 400, xdom: [-lim, lim], ydom: [-lim, lim], xlabel: `PC${ax + 1}`, ylabel: `PC${ay + 1}`, xgrid: true, margin: { l: 90, r: 90, t: 20 } });
+  const labels = [];
+  if (state.pcaStd) el("circle", { cx: lf.sx(0), cy: lf.sy(0), r: lf.sx(1) - lf.sx(0), fill: "none", stroke: lf.C.muted, "stroke-dasharray": "4 3" }, lf.plot);
+  sel.slice(0, 60).forEach((n, j) => {
+    const x = L[ax][j], y = L[ay][j];
+    el("line", { x1: lf.sx(0), y1: lf.sy(0), x2: lf.sx(x), y2: lf.sy(y), stroke: lf.C.fill, "stroke-width": 1.6 }, lf.plot);
+    el("circle", { cx: lf.sx(x), cy: lf.sy(y), r: 3, fill: lf.C.fill, "data-tip": `${n}\n${fmt(x, 3)}, ${fmt(y, 3)}` }, lf.plot);
+    if (sel.length <= 20) labels.push({ n: n.length > 18 ? n.slice(0, 17) + "…" : n, x: lf.sx(x) + (x >= 0 ? 6 : -6), y: lf.sy(y) + 4, right: x >= 0 });
+  });
+  // Labels outside the clip area; nudge apart vertically when they would overlap.
+  labels.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < labels.length; i++) for (let j = 0; j < i; j++) {
+    if (labels[i].right === labels[j].right && Math.abs(labels[i].x - labels[j].x) < 90 && labels[i].y - labels[j].y < 13) labels[i].y = labels[j].y + 13;
+  }
+  for (const l of labels) txt(lf.svg, l.x, l.y, l.n, { "font-size": 11, fill: lf.C.ink, "text-anchor": l.right ? "start" : "end" });
+  res.appendChild(card("Loading Plot", lf.svg, { sub: state.pcaStd ? "Loadings = correlations between each column and the component" : "Loadings = eigenvector × √eigenvalue" }));
+  const lc = Math.min(k, 8);
+  const lrows = sel.slice(0, 200).map((n, j) => [n].concat(Array.from({ length: lc }, (_, i) => ({ v: fmt(L[i][j], 4), style: Math.abs(L[i][j]) >= 0.5 && state.pcaStd ? "font-weight:600" : "" }))));
+  res.appendChild(card("Loading Matrix", statTable([""].concat(Array.from({ length: lc }, (_, i) => "PC" + (i + 1))), lrows), {
+    csv: () => S.toCsv(["Column"].concat(P.components.map((_, i) => "PC" + (i + 1))), [sel].concat(P.components.map((_, i) => sel.map((_, j) => L[i][j])))),
+    sub: sel.length > 200 ? "First 200 columns" : "",
+  }));
+
+  // PPCA
+  const q = Math.min(state.pcaQ, sel.length - 1);
+  let F;
+  try { F = S.ppca(cols, q, { standardize: state.pcaStd }); } catch (e) { res.insertAdjacentHTML("beforeend", `<div class="card err">${esc(e.message)}</div>`); return; }
+  const prof = S.ppcaProfile(F.eigenvalues, F.N, Math.min(sel.length - 1, 50));
+  const bestBic = prof.reduce((b, r) => (r.bic < b.bic ? r : b), prof[0]);
+  const ph = document.createElement("div");
+  ph.className = "group";
+  ph.innerHTML = `<h3>Probabilistic PCA <span class="note">x = W z + μ + ε,  z ~ N(0, I<sub>q</sub>),  ε ~ N(0, σ²I) — maximum-likelihood fit (Tipping &amp; Bishop, 1999)</span></h3>`;
+  res.appendChild(ph);
+  res.appendChild(card(`PPCA fit, q = ${q}`, statTable(null, [
+    ["Latent dimensions q", q], ["Observed dimensions d", F.d], ["Rows N", F.N],
+    ["Noise variance σ²", fmt(F.sigma2)], ["Variance in the latent subspace", fmt(F.explained, 4) + "%"],
+    ["Log-likelihood", fmt(F.logLik, 6)], ["Parameters", F.params], ["AIC", fmt(F.aic, 6)], ["BIC", fmt(F.bic, 6)],
+    ["Reconstruction RMSE", fmt(F.rmse)],
+  ]), { sub: state.pcaStd ? "Fitted to standardized columns; RMSE is in the original units" : "Fitted to the columns as they are" }));
+  const qi = prof.findIndex(r => r.q === q);
+  res.appendChild(card("Choosing q", statTable(["q", "σ²", "Log-likelihood", "AIC", "BIC", "Variance %"], prof.map(r => [r.q + (r.q === bestBic.q ? " ◂ best BIC" : ""), fmt(r.sigma2), fmt(r.logLik, 6), fmt(r.aic, 6), fmt(r.bic, 6), fmt(r.explained, 4)]), { hl: qi }),
+    { sub: `Lowest BIC at q = ${bestBic.q}. Change q above to refit.` }));
+  // latent plot
+  const lat = F.latent.map((z, r) => {
+    const row = F.index[r], g = colorCol ? colorCol.values[row] : null;
+    return { x: z[0], y: q > 1 ? z[1] : 0, c: g != null && lvlIndex.has(String(g)) ? lvlIndex.get(String(g)) : null, tip: `Row ${row + 1}${g != null ? "\n" + state.pcaColor + ": " + g : ""}\nz1 ${fmt(z[0], 3)}${q > 1 ? ", z2 " + fmt(z[1], 3) : ""}` };
+  });
+  if (q === 1) lat.forEach((p, i) => { p.y = ((i * 0.618034) % 1) - 0.5; });
+  const latSvg = scatterChart(lat, { xlabel: "z1 (posterior mean)", ylabel: q > 1 ? "z2 (posterior mean)" : "jitter", width: 460, height: q > 1 ? 380 : 220, ydom: q > 1 ? undefined : [-0.7, 0.7] });
+  const latCard = card("Latent Space E[z | x]", wrap(latSvg, levels.length && levels.length <= 30 ? legend(levels, colors()) : null));
+  addSvgTools(latCard.querySelector("h4"), latSvg, "PPCA latent space");
+  const saveLat = Object.assign(document.createElement("button"), { className: "btn small", textContent: "Save latent", title: "Add the latent z columns and the reconstructed columns to the data table" });
+  saveLat.onclick = () => {
+    for (let j = 0; j < q; j++) {
+      const v = new Array(table.nrows).fill(NaN);
+      F.index.forEach((row, r) => { v[row] = F.latent[r][j]; });
+      addColumn("PPCA z" + (j + 1), v);
+    }
+    sel.forEach((n, j) => {
+      const v = new Array(table.nrows).fill(NaN);
+      F.index.forEach((row, r) => { v[row] = F.recon[r][j]; });
+      addColumn("Reconstructed " + n, v);
+    });
+    renderColumns();
+    toast(`Added ${q} latent and ${sel.length} reconstructed columns to the data table`);
+  };
+  latCard.querySelector(".tools").prepend(saveLat);
+  res.appendChild(latCard);
+  const wrows = sel.slice(0, 200).map((n, j) => [n].concat(F.W[j].map(v => fmt(v, 4))));
+  res.appendChild(card("Factor Loadings W", statTable([""].concat(Array.from({ length: q }, (_, i) => "z" + (i + 1))), wrows), {
+    sub: "W = U_q (Λ_q − σ²I)^½; each column is a principal axis scaled by its signal variance",
+    csv: () => S.toCsv(["Column"].concat(Array.from({ length: q }, (_, i) => "z" + (i + 1))), [sel].concat(Array.from({ length: q }, (_, i) => sel.map((_, j) => F.W[j][i])))),
+  }));
+}
+
+// ---------- desktop link: lets Gothysis.exe know when the window closes ----------
+if (location.protocol.startsWith("http") && /^(127\.0\.0\.1|localhost)$/.test(location.hostname)) {
+  try { new EventSource("/api/alive"); } catch (e) {}
+}
+renderAll();
+</script>
+</body>
+</html>

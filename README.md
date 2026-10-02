@@ -47,3 +47,19 @@ folder watcher, FOUP link check and file saving as the Electron build.
 `build-win.sh` also writes `dist/parts/`: five 24 MB pieces plus `JOIN-Senson.bat`. Put them in one
 folder on Windows and double-click the .bat; it joins them, unzips, and starts `Senson\Senson.exe`.
 On the first run, Windows SmartScreen may warn about an unsigned app: choose More info → Run anyway.
+
+## Gothysis (`gothysis/`)
+
+A small desktop statistics app for Windows: distributions, Fit Y by X (regression, one-way ANOVA,
+contingency), correlations, and PCA / probabilistic PCA (Tipping & Bishop) on CSV, TSV or .xlsx data.
+One `Gothysis.exe` (Go) embeds the page in `gothysis/app/` and opens it in a Microsoft Edge app window;
+the statistics run in `app/stats.js` and are checked against SciPy and scikit-learn values.
+Independent tool, not affiliated with JMP or SAS.
+
+```bash
+cd gothysis
+bash build.sh                 # tests, then dist/Gothysis-Windows.zip (Gothysis.exe + README.txt)
+node --test test/*.test.js    # statistics tests only
+```
+
+`app/index.html` also works opened straight in a browser.
